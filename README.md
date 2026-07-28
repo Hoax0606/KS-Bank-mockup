@@ -66,9 +66,9 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 COBOL 백엔드가 리눅스 서버에 빌드·구동 중입니다 (Oracle 연결·거래기록 E2E 확인 완료).
 
-- 주소: **Tailscale `[REDACTED]`** (사내 Tailscale 망 접속 필요)
+- 접속: **사내 Tailscale 망**을 통해 접속합니다 (서버 주소·포트·접속 권한은 담당자에게 문의).
 
-> Tailscale 접속 권한이 필요하면 seoyeong 님(seoyeong.jeong@ks-infosys.com)에게 요청하세요.
+> 서버 주소 및 Tailscale 접속 권한은 seoyeong 님(seoyeong.jeong@ks-infosys.com)에게 요청하세요.
 
 ---
 
