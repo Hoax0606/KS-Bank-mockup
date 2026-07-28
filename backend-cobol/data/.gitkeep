@@ -1,0 +1,3 @@
+# このディレクトリに MKDAT が TORIHIKI.DAT(97byte EBCDIC)を生成し、
+# YAKANBAT が MEISAI.RPT(58byte EBCDIC)を出力します。
+# 生成物(*.DAT / *.RPT)は現新比較ツールの入力(EBCDIC原本)です。

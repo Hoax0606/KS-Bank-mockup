@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────
+#  KS-Bank mockup .gitignore
+# ─────────────────────────────────────────────
+
+# 서드파티 벤더 다운로드 (재배포 라이선스 / 대용량)
+#   → clone 후 backend-cobol/docker/vendor/README.md 참고해 직접 다운로드
+backend-cobol/docker/vendor/*.zip
+backend-cobol/docker/vendor/*.tar.gz
+
+# 빌드 로그 / 산출물
+backend-cobol/build/gixsql.log
+*.log
+*.o
+*.so
+*.int
+*.gnt
+*.lst
+
+# OS / 에디터 잡파일
+.DS_Store
+Thumbs.db
+*.swp
+*~

@@ -1,0 +1,80 @@
+# ============================================================
+#  asis-backend  -  GnuCOBOL + GixSQL(EXEC SQL) + Oracle Instant Client
+#  古典メインフレーム風 CGI(nginx + fcgiwrap)で オンライン5種+拡張 を配信、
+#  同一イメージに 夜間バッチ(YAKANBAT) と サンプル生成(MKDAT) を同梱。
+#
+#  ★ Oracle Instant Client と GixSQL は再配布条件・入手先の都合で、
+#     ビルド時にダウンロード/同梱する。下記 ARG で版とURLを指定する。
+#     (社内ミラー or Oracle公式からの取得を想定。§2: GixSQL 1.0.18+)
+# ============================================================
+FROM debian:12-slim
+
+ARG GIXSQL_VER=1.0.20b
+ARG INSTANTCLIENT_ZIP=instantclient-basiclite-linux.x64.zip
+ARG INSTANTCLIENT_SDK=instantclient-sdk-linux.x64.zip
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV GIXHOME=/opt/gixsql
+ENV ORACLE_HOME=/opt/oracle/instantclient
+ENV PATH="/app/build/bin:${GIXHOME}/bin:${PATH}"
+# 取引時刻を日本時間(JST)で記録するためタイムゾーンを固定(既定はUTC)
+ENV TZ=Asia/Tokyo
+
+# ---- 基本ツール + GnuCOBOL + nginx + fcgiwrap ----
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential gnucobol \
+      nginx fcgiwrap spawn-fcgi \
+      libaio1 unzip wget ca-certificates netcat-openbsd git tzdata \
+      openjdk-17-jdk-headless \
+      autoconf automake libtool pkg-config \
+      libspdlog-dev libfmt-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---- Oracle Instant Client(basiclite + sdk) ----
+#   ビルドコンテキスト = リポジトリルート。vendor は backend-cobol/docker/vendor/。
+COPY backend-cobol/docker/vendor/${INSTANTCLIENT_ZIP} /tmp/ic.zip
+COPY backend-cobol/docker/vendor/${INSTANTCLIENT_SDK} /tmp/icsdk.zip
+RUN mkdir -p /opt/oracle && cd /opt/oracle \
+    && unzip -oq /tmp/ic.zip && unzip -oq /tmp/icsdk.zip \
+    && IC=$(ls -d /opt/oracle/instantclient_* | head -1) \
+    && ln -s "$IC" /opt/oracle/instantclient \
+    && echo /opt/oracle/instantclient > /etc/ld.so.conf.d/oracle.conf \
+    && ldconfig \
+    && rm -f /tmp/ic.zip /tmp/icsdk.zip
+
+# ---- GixSQL(ソースからビルド。Oracle ドライバ有効化) ----
+COPY backend-cobol/docker/vendor/gixsql-${GIXSQL_VER}.tar.gz /tmp/gixsql.tar.gz
+RUN mkdir -p /tmp/gixsql && tar xzf /tmp/gixsql.tar.gz -C /tmp/gixsql --strip-components=1 \
+    && cd /tmp/gixsql \
+    && ./configure --prefix=${GIXHOME} \
+         --with-oracle=/opt/oracle/instantclient \
+    && make -j"$(nproc)" && make install \
+    && rm -rf /tmp/gixsql /tmp/gixsql.tar.gz
+
+# ---- アプリ(ASIS 一式)配置 & ビルド ----
+#   ビルドコンテキスト = リポジトリルート(minibank-demo/)。
+WORKDIR /app
+COPY backend-cobol/ /app/
+# フロントエンド(無変更再利用)を配信ルートへ
+COPY frontend/ /app/frontend/
+RUN cd /app/build && make GIXHOME=${GIXHOME}
+# JEF: COBOL↔サービス C ブリッジ(.so) と JEF 変換サービス(Java/JEF4J)をビルド
+RUN gcc -shared -fPIC /app/cobol/JEFCONV.c -o /app/build/lib/JEFCONV.so
+RUN cd /app/jef && javac -encoding UTF-8 -cp jef4j.jar JefServer.java
+
+# ---- ランタイム環境(CGI/バッチ共通で継承) ----
+#   COB_LIBRARY_PATH: 動的 CALL するモジュール(.so)の探索先。
+#     各モジュールは ファイル名=PROGRAM-ID なので名前解決は自動。
+#   LD_LIBRARY_PATH : libgixsql + Oracle Instant Client
+ENV COB_LIBRARY_PATH=/app/build/lib
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient:/opt/gixsql/lib
+
+# ---- nginx 設定 ----
+COPY backend-cobol/cgi/nginx-cgi.conf /etc/nginx/sites-available/default
+RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+COPY backend-cobol/docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 80
+ENTRYPOINT ["/entrypoint.sh"]

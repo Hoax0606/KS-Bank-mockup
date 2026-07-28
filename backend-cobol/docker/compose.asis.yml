@@ -1,0 +1,45 @@
+# ============================================================
+#  ASIS デモ  compose 조각
+#   서비스: asis-backend(CGI/nginx) + oracle(Free 23ai, 1521)
+#   실행(리포지토리 루트에서):
+#     docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
+#   VM 재부팅 시 자동 복구: restart: unless-stopped
+# ============================================================
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: mb-oracle
+    environment:
+      ORACLE_PASSWORD: oracle           # SYS/SYSTEM 비밀번호
+      APP_USER: minibank                # 앱 스키마 유저
+      APP_USER_PASSWORD: minibank
+    ports:
+      - "1521:1521"
+    volumes:
+      # init 스크립트로 DDL+시드 자동 적재(알파벳 순 실행)
+      - ../sql/01_ddl.sql:/container-entrypoint-initdb.d/01_ddl.sql:ro
+      - ../sql/02_seed.sql:/container-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  asis-backend:
+    build:
+      context: ../..                    # 리포지토리 루트
+      dockerfile: backend-cobol/docker/Dockerfile.asis
+    container_name: mb-asis-backend
+    depends_on:
+      oracle:
+        condition: service_healthy
+    environment:
+      ORA_CONN: "oracle://oracle:1521/FREEPDB1"
+      ORA_USER: "minibank"
+      ORA_PASS: "minibank"
+      # RAW 무변환 통과(§2). 일본어 컬럼은 RAW라 문자집합 변환 안 받음.
+      NLS_LANG: "AMERICAN_AMERICA.AL32UTF8"
+    ports:
+      - "8080:80"
+    restart: unless-stopped

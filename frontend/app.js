@@ -84,8 +84,10 @@ var TRANSFER_FEE = 110;
 var RATE_BY_TYPE = { '普通': 0.20, '当座': 0.05, '積立': 0.30, '定期': 0.35 };
 
 var STORES = [
-  { code: '001', name: '東京営業部' }, { code: '002', name: '新宿支店' }, { code: '003', name: '渋谷支店' },
-  { code: '004', name: '横浜支店' }, { code: '005', name: '大阪支店' }, { code: '006', name: '名古屋支店' }
+  { code: '001', name: '東京営業部' }, { code: '100', name: '丸の内支店' }, { code: '200', name: '新宿支店' },
+  { code: '305', name: '渋谷支店' }, { code: '040', name: '横浜支店' }, { code: '210', name: '大阪支店' },
+  { code: '500', name: '名古屋支店' }, { code: '088', name: '札幌支店' }, { code: '060', name: '福岡支店' },
+  { code: '700', name: '仙台支店' }
 ];
 var BRANCHES2 = [
   { code: '001', name: '東京営業部' }, { code: '100', name: '丸の内支店' }, { code: '200', name: '新宿支店' },
@@ -103,30 +105,10 @@ var BANK_META = {
 };
 
 function buildAccounts() {
-  return [
-    { no: '1000123', kanji: '山田太郎', kana: 'ヤマダタロウ', type: '普通', balance: 523400, status: '正常', branch: '東京営業部', bcode: '001', pw: 'ks1234', prof: { birth: '1985/04/12', sex: '男性', zip: '1000001', addr: '東京都千代田区丸の内1-1-1', phone: '090-1234-5678', email: 'taro.yamada@example.jp', job: '会社員' } },
-    { no: '2000456', kanji: '佐藤花子', kana: 'サトウハナコ', type: '普通', balance: 88250, status: '正常', branch: '新宿支店', bcode: '002', pw: '1111' },
-    { no: '3000789', kanji: '髙橋圭子', kana: 'タカハシケイコ', type: '普通', balance: 1204000, status: '正常', branch: '渋谷支店', bcode: '003', pw: '' },
-    { no: '1001011', kanji: '鈴木一郎', kana: 'スズキイチロウ', type: '当座', balance: 45000, status: '正常', branch: '東京営業部', bcode: '001', pw: '' },
-    { no: '4001213', kanji: '田中美咲', kana: 'タナカミサキ', type: '普通', balance: 3000, status: '正常', branch: '横浜支店', bcode: '004', pw: '' },
-    { no: '5001415', kanji: '渡辺健', kana: 'ワタナベケン', type: '普通', balance: 670000, status: '凍結', branch: '大阪支店', bcode: '005', pw: '' },
-    { no: '6001617', kanji: '中村愛', kana: 'ナカムラアイ', type: '普通', balance: 158900, status: '正常', branch: '名古屋支店', bcode: '006', pw: '' },
-    { no: '1001819', kanji: '小林大輔', kana: 'コバヤシダイスケ', type: '当座', balance: 920500, status: '正常', branch: '東京営業部', bcode: '001', pw: '' }
-  ];
+  return [];  // 하드코딩 계좌 제거: 로그인 시 /api/login 응답으로 DB에서 채운다
 }
 function buildJournal() {
-  return [
-    { date: '2026-06-01', no: '1000123', type: '入金', amt: 200000, memoJa: '給与振込', memoKo: '급여이체' },
-    { date: '2026-06-03', no: '1000123', type: '出金', amt: 35000, memoJa: 'ATM出金', memoKo: 'ATM 출금' },
-    { date: '2026-06-06', no: '1000123', type: '振込', amt: 80000, memoJa: '佐藤花子へ振込', memoKo: '佐藤花子에게 이체' },
-    { date: '2026-06-09', no: '1001011', type: '出金', amt: 12000, memoJa: '公共料金', memoKo: '공과금' },
-    { date: '2026-06-12', no: '1000123', type: '入金', amt: 15000, memoJa: '利息', memoKo: '이자' },
-    { date: '2026-06-15', no: '3000789', type: '出金', amt: 60000, memoJa: 'ATM出金', memoKo: 'ATM 출금' },
-    { date: '2026-06-17', no: '4001213', type: '入金', amt: 2000, memoJa: '現金入金', memoKo: '현금 입금' },
-    { date: '2026-06-18', no: '1000123', type: '出金', amt: 9800, memoJa: 'クレジット引落', memoKo: '카드 대금' },
-    { date: '2026-06-20', no: '2000456', type: '入金', amt: 120000, memoJa: 'ボーナス', memoKo: '보너스' },
-    { date: '2026-06-22', no: '1001011', type: '振込', amt: 25000, memoJa: '山田太郎へ振込', memoKo: '山田太郎에게 이체' }
-  ];
+  return [];  // 가짜 거래이력 제거: 명세는 /api/meisai 로 DB에서 로드한다
 }
 
 function dict() {
@@ -144,7 +126,6 @@ function dict() {
       receiptLabel: '受付番号', dtLabel: '取扱日時', afterBal: 'お取引後残高', doneMsgTr: '振込を受け付けました', toHome: 'ホームへ戻る',
       note_fee: '※ 振込手数料として110円を振込元口座より引き落とします。', note_atomic: '※ 振込金額と手数料は一括処理され、残高不足・口座凍結の場合はお取引を承れません。',
       err_amount: '正しい金額をご入力ください。', err_accno: '振込先口座番号をご入力ください。', err_insuf: '残高が不足しています。', err_frozen: 'お客様の口座は現在ご利用いただけません。', err_insuf_wdr: '残高が不足しているため出金できません。',
-      dep_title: '入金', dep_done: '入金を受け付けました', dep_exec: '入金する', dep_note: '※ 入金額を代表口座残高へ加算します。',
       loan_title: 'ローン', loan_step1: '借入内容入力', loan_step2: '内容確認', loan_step3: '申込完了',
       loan_totalBorrow: '借入総額', loan_remainPay: '残りの返済額', loan_availLeft: 'お借入可能額 残り', loan_amt: '借入金額', loan_term: '返済期間', loan_years: '年', loan_rate: '適用金利（年）',
       loan_monthly: '月々返済額', loan_total: '総返済額', loan_sim: '返済シミュレーション', loan_apply: 'この内容で申し込む', loan_none: '現在ご利用中のローンはありません。', loan_apply_btn: 'お申し込み', loan_bal: '借入残高', loan_done: 'お申し込みを受け付けました', loan_err_over: '借入可能額を超えています。',
@@ -187,7 +168,6 @@ function dict() {
       receiptLabel: '접수번호', dtLabel: '처리일시', afterBal: '거래 후 잔액', doneMsgTr: '이체를 접수했습니다', toHome: '홈으로',
       note_fee: '※ 이체 수수료 110엔을 출금 계좌에서 인출합니다.', note_atomic: '※ 이체액과 수수료는 일괄 처리되며, 잔액부족·계좌동결 시 거래를 승인할 수 없습니다.',
       err_amount: '올바른 금액을 입력하세요.', err_accno: '입금처 계좌번호를 입력하세요.', err_insuf: '잔액이 부족합니다.', err_frozen: '고객님의 계좌는 현재 이용하실 수 없습니다.', err_insuf_wdr: '잔액이 부족하여 출금할 수 없습니다.',
-      dep_title: '입금', dep_done: '입금을 접수했습니다', dep_exec: '입금하기', dep_note: '※ 입금액을 대표 계좌 잔액에 더합니다.',
       loan_title: '대출', loan_step1: '대출내용 입력', loan_step2: '내용 확인', loan_step3: '신청 완료',
       loan_totalBorrow: '대출 총액', loan_remainPay: '남은 상환액', loan_availLeft: '남은 대출 가능액', loan_amt: '대출 금액', loan_term: '상환 기간', loan_years: '년', loan_rate: '적용 금리(연)',
       loan_monthly: '월 상환액', loan_total: '총 상환액', loan_sim: '상환 시뮬레이션', loan_apply: '이 내용으로 신청', loan_none: '현재 이용 중인 대출이 없습니다.', loan_apply_btn: '신청하기', loan_bal: '대출 잔액', loan_done: '대출 신청을 접수했습니다', loan_err_over: '대출 가능액을 초과했습니다.',
@@ -233,7 +213,6 @@ App.initialState = function () {
     accounts: buildAccounts(), journal: buildJournal(),
     me: '1000123',
     trStep: 1, trStage: 'bank', trBank: '', trBankQuery: '', trBranchQuery: '', trBranch: '', trBcode: '', trTo: '', trAmt: '', trErr: null, trReceipt: null, trResvDate: 'today',
-    cashStep: 1, cashAmt: '', cashErr: null, cashReceipt: null,
     loanStep: 0, loanAmt: '', loanTermY: '5', loanMethod: 'A', loanErr: null, loanReceipt: null, loans: [], loanHistory: [], loanAcct: '1000123', loanDetailIdx: null, repayIdx: null, repayAmt: '', repayErr: null, repayReceipt: null,
     isLoggedIn: false, loginBranch: '', loginAcct: '', loginPw: '', loginErr: null,
     authPage: 'login', suStep: 1, suErr: null, suResult: null,
@@ -243,7 +222,7 @@ App.initialState = function () {
     meisaiAcct: null, meisaiType: 'all', meisaiFrom: '', meisaiTo: '', meisaiPickOpen: false,
     repAcct: '1000123', ownNos: ['1000123'], homeView: '1000123',
     naStep: 1, naType: '普通', naStore: '001', naPw: '', naErr: null, naResult: null, naSaveTerm: '6', naSaveMonthly: '30000',
-    extraNotices: [], ncTitle: '', ncBody: '', ncFiles: [], selNotice: null, hiddenBase: [],
+    extraNotices: [], dbNotices: [], ncTitle: '', ncBody: '', ncFiles: [], selNotice: null, hiddenBase: [],
     rSeq: 10247
   };
 };
@@ -278,7 +257,6 @@ App._saveProject = function (type, principalOrMonthly, months) {
 App._resetFlows = function () {
   return {
     trStep: 1, trStage: 'bank', trBank: '', trBankQuery: '', trBranchQuery: '', trErr: null, trReceipt: null, trAmt: '', trTo: '', trBranch: '', trBcode: '', trResvDate: 'today',
-    cashStep: 1, cashErr: null, cashReceipt: null, cashAmt: '',
     loanStep: 0, loanErr: null, loanReceipt: null, loanAmt: '', loanMethod: 'A',
     repayIdx: null, repayReceipt: null, repayErr: null, repayAmt: '', loanDetailIdx: null
   };
@@ -286,10 +264,18 @@ App._resetFlows = function () {
 App.goTo = function (p) { return function () { App.setState(function (s) { return Object.assign({ page: p, pageStack: s.pageStack.concat([s.page]) }, App._resetFlows()); }); }; };
 App.back = function () { App.setState(function (s) { var st = s.pageStack.slice(); var prev = st.length ? st.pop() : 'home'; return Object.assign({ page: prev, pageStack: st }, App._resetFlows()); }); };
 App.goHome = function () { App.setState(Object.assign({ page: 'home', pageStack: [] }, App._resetFlows())); };
-App.goNyushukkin = App.goTo('nyushukkin');
 App.goSoukin = App.goTo('transfer');
-App.goLoan = App.goTo('loan');
-App.goMeisai = App.goTo('meisai');
+App.loadLoans = function (kouza) {
+  kouza = String(kouza || ''); if (!kouza) return;
+  fetch('/api/loan?kouza=' + encodeURIComponent(kouza))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok || !d.loans) return;
+      App.setState({ loans: d.loans.map(function (l) { return { loanId: l.loanId, amt: Number(l.principal), bal: Number(l.balance), method: l.method, years: l.years, date: '', acct: kouza }; }) });
+    }).catch(function () {});
+};
+App.goLoan = function () { var me = App.me(); App.loadLoans(me && me.no); App.goTo('loan')(); };
+App.goMeisai = function () { var a = App._meisaiAcct(); App.loadMeisai(a && a.no); App.goTo('meisai')(); };
 
 /* ============================================================
    Header / settings / language
@@ -311,9 +297,28 @@ App.doLogin = function () {
   var T = App.T(), s = App.state;
   var b = (s.loginBranch || '').replace(/[^0-9]/g, ''), a = (s.loginAcct || '').replace(/[^0-9]/g, ''), p = s.loginPw || '';
   if (b.length !== 3 || a.length !== 7) return App.setState({ loginErr: T.login_fmt });
-  var acc = s.accounts.find(function (x) { return x.bcode === b && x.no === a && (x.pw || '') === p && p !== ''; });
-  if (acc) App.setState({ isLoggedIn: true, me: acc.no, page: 'home', pageStack: [], loginErr: null, loginPw: '', repAcct: acc.no, ownNos: [acc.no], homeView: acc.no, meisaiAcct: null });
-  else App.setState({ loginErr: T.login_err });
+  App.setState({ loginErr: null });
+  // 実COBOLバックエンド(LOGIN.cbl / CGI)へ: 店番3桁 + 口座7桁 + PW を検証
+  var body = 'branch=' + encodeURIComponent(b) + '&acct=' + encodeURIComponent(a) + '&pw=' + encodeURIComponent(p);
+  fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) return App.setState({ loginErr: T.login_err });
+      if (String(d.joutai) === '9') return App.setState({ loginErr: T.err_frozen || T.login_err });
+      var accts = App.state.accounts.slice();
+      var idx = accts.findIndex(function (x) { return x.no === a; });
+      var base = idx >= 0 ? accts[idx] : { no: a, kana: '', branch: '', bcode: b, pw: p };
+      // DBを正とし、残高・名義・種別・状態をログインの都度同期する
+      var acc = Object.assign({}, base, {
+        kanji: d.meigiKanji || base.kanji || '', type: d.type || base.type || '普通',
+        balance: Number(d.zandaka) || 0, bcode: b, pw: p,
+        status: (String(d.joutai) === '9' ? '凍結' : '正常')
+      });
+      if (idx >= 0) accts[idx] = acc; else accts.push(acc);
+      App.setState({ accounts: accts, isLoggedIn: true, me: acc.no, page: 'home', pageStack: [], loginErr: null, loginPw: '', repAcct: acc.no, ownNos: [acc.no], homeView: acc.no, meisaiAcct: null });
+      App.loadNotices();
+    })
+    .catch(function () { App.setState({ loginErr: T.login_err }); });
 };
 App.doLogout = function () { App.setState({ isLoggedIn: false, page: 'home', pageStack: [], loginBranch: '', loginAcct: '', loginPw: '', loginErr: null, showUserSettings: false, authPage: 'login' }); };
 App.goSignup = function () { App.setState({ authPage: 'signup', suStep: 1, suErr: null, suResult: null }); };
@@ -332,9 +337,20 @@ App.suConfirm = function () {
 App.suBack = function () { App.setState({ suStep: 1, suErr: null }); };
 App.suExecute = function () {
   var s = App.state, store = STORES.find(function (x) { return x.code === s.suStore; }) || STORES[0];
-  var no = String(parseInt(store.code, 10)) + String(Math.floor(Math.random() * 900000) + 100000);
-  var acc = { no: no, kanji: s.suName.trim(), kana: s.suKana.trim(), type: s.suType, balance: 0, status: '正常', branch: store.name, bcode: store.code, pw: s.suPw, prof: { birth: s.suBirth, sex: s.suSex, zip: s.suZip, addr: s.suAddr, phone: s.suPhone, email: s.suEmail, job: s.suJob } };
-  App.setState({ accounts: s.accounts.concat([acc]), suResult: { tenban: store.code, store: store.name, no: no, type: s.suType }, suStep: 3 });
+  // 実COBOLバックエンド(SIGNUP.cbl / CGI)で口座開設。口座番号はDB採番(SEQ_KOUZA_DYN 9000001~)。
+  var body = 'kanji=' + encodeURIComponent(s.suName.trim()) + '&kana=' + encodeURIComponent(s.suKana.trim()) +
+    '&type=' + encodeURIComponent(s.suType) + '&branch=' + encodeURIComponent(store.code) + '&pw=' + encodeURIComponent(s.suPw) +
+    '&birth=' + encodeURIComponent(s.suBirth) + '&sex=' + encodeURIComponent(s.suSex) + '&zip=' + encodeURIComponent(s.suZip) +
+    '&addr=' + encodeURIComponent(s.suAddr) + '&phone=' + encodeURIComponent(s.suPhone) + '&email=' + encodeURIComponent(s.suEmail) + '&job=' + encodeURIComponent(s.suJob);
+  fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok || !d.kouza) return App.setState({ suErr: App.T().su_err_req });
+      var no = String(d.kouza);
+      var acc = { no: no, kanji: s.suName.trim(), kana: s.suKana.trim(), type: s.suType, balance: 0, status: '正常', branch: store.name, bcode: store.code, pw: s.suPw, prof: { birth: s.suBirth, sex: s.suSex, zip: s.suZip, addr: s.suAddr, phone: s.suPhone, email: s.suEmail, job: s.suJob } };
+      App.setState({ accounts: App.state.accounts.concat([acc]), suResult: { tenban: store.code, store: store.name, no: no, type: s.suType }, suStep: 3 });
+    })
+    .catch(function () { App.setState({ suErr: App.T().su_err_req }); });
 };
 App.suToLogin = function () {
   var r = App.state.suResult;
@@ -350,21 +366,6 @@ App.suToLogin = function () {
 App.homeCar = function (dir) { return function () { var s = App.state; var n = s.ownNos.length; if (n <= 1) return; var i = s.ownNos.indexOf(s.homeView); if (i < 0) i = 0; i = (i + dir + n) % n; App.setState({ homeView: s.ownNos[i] }); }; };
 App.setRep = function (no) { return function (e) { if (e && e.stopPropagation) e.stopPropagation(); App.setState({ repAcct: no, me: no, meisaiAcct: null }); }; };
 
-/* ============================================================
-   Deposit (入金)
-   ============================================================ */
-App.cashConfirm = function () {
-  var T = App.T(), amt = App._amt(App.state.cashAmt);
-  if (amt <= 0) return App.setState({ cashErr: T.err_amount });
-  App.setState({ cashErr: null, cashStep: 2 });
-};
-App.cashBack = function () { App.setState({ cashStep: 1, cashErr: null }); };
-App.cashExecute = function () {
-  var s = App.state, me = App._find(s.me), amt = App._amt(s.cashAmt);
-  var accts = App._upd(me.no, amt);
-  var j = s.journal.concat([{ date: App._today(), no: me.no, type: '入金', amt: amt, memoJa: '窓口入金', memoKo: '창구 입금' }]);
-  App.setState({ accounts: accts, journal: j, cashReceipt: { no: App._receipt('DEP'), dt: App._now() }, rSeq: s.rSeq + 1, cashStep: 3 });
-};
 
 /* ============================================================
    Transfer (振込・イ체)
@@ -392,17 +393,29 @@ App.trConfirm = function () {
 };
 App.trBack = function () { App.setState({ trStep: 1, trErr: null }); };
 App.trExecute = function () {
-  var s = App.state, me = App._find(s.me), amt = App._amt(s.trAmt), fee = TRANSFER_FEE, total = amt + fee;
-  if (total > me.balance) return App.setState({ trStep: 1, trErr: App.T().err_insuf });
-  var to = App._find(s.trTo.replace(/[^0-9]/g, '').padStart(7, '0'));
-  var accts = App._upd(me.no, -total);
-  if (to) accts = accts.map(function (x) { return x.no === to.no ? Object.assign({}, x, { balance: x.balance + amt }) : x; });
-  var j = s.journal.concat([
-    { date: App._today(), no: me.no, type: '振込', amt: amt, memoJa: (s.trBranch || '') + '宛 振込', memoKo: (s.trBranch || '') + ' 이체' },
-    { date: App._today(), no: me.no, type: '手数料', amt: fee, memoJa: '振込手数料', memoKo: '이체 수수료' }
-  ]);
-  if (to) j = j.concat([{ date: App._today(), no: to.no, type: '入金', amt: amt, memoJa: me.kanji + 'より振込入金', memoKo: me.kanji + '로부터 이체 입금' }]);
-  App.setState({ accounts: accts, journal: j, trReceipt: { no: App._receipt('WEB'), dt: App._now() }, rSeq: s.rSeq + 1, trStep: 3 });
+  var s = App.state, me = App._find(s.me), amt = App._amt(s.trAmt), fee = TRANSFER_FEE;
+  var toNo = s.trTo.replace(/[^0-9]/g, '').padStart(7, '0');
+  // 実COBOLバックエンド(FURIKOMI.cbl / CGI)へ振込(原子的処理)。残高はDB確定値。
+  var body = 'kouza=' + encodeURIComponent(me.no) + '&aite=' + encodeURIComponent(toNo) + '&kingaku=' + amt;
+  fetch('/api/furikomi', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) {
+        var T = App.T();
+        return App.setState({ trStep: 1, trErr: (d && d.error === 'frozen') ? T.err_frozen : T.err_insuf });
+      }
+      if (d.fee != null) fee = Number(d.fee);
+      var to = App._find(toNo);
+      var accts = App.state.accounts.map(function (x) { return x.no === me.no ? Object.assign({}, x, { balance: Number(d.afterBal) }) : x; });
+      if (to) accts = accts.map(function (x) { return x.no === to.no ? Object.assign({}, x, { balance: x.balance + amt }) : x; });
+      var j = App.state.journal.concat([
+        { date: App._today(), no: me.no, type: '振込', amt: amt, memoJa: (s.trBranch || '') + '宛 振込', memoKo: (s.trBranch || '') + ' 이체' },
+        { date: App._today(), no: me.no, type: '手数料', amt: fee, memoJa: '振込手数料', memoKo: '이체 수수료' }
+      ]);
+      if (to) j = j.concat([{ date: App._today(), no: to.no, type: '入金', amt: amt, memoJa: me.kanji + 'より振込入金', memoKo: me.kanji + '로부터 이체 입금' }]);
+      App.setState({ accounts: accts, journal: j, trReceipt: { no: (d.receipt || App._receipt('WEB')), dt: App._now() }, rSeq: App.state.rSeq + 1, trStep: 3 });
+    })
+    .catch(function () { App.setState({ trStep: 1, trErr: App.T().err_insuf }); });
 };
 
 /* ============================================================
@@ -446,9 +459,17 @@ App.loanStepBack = function () {
 };
 App.loanExecute = function () {
   var s = App.state, me = App._find(s.me), P = App._amt(s.loanAmt), acctNo = s.loanAcct || me.no;
-  var accts = App._upd(acctNo, P);
-  var j = s.journal.concat([{ date: App._today(), no: acctNo, type: '融資実行', amt: P, memoJa: '', memoKo: '' }]);
-  App.setState({ accounts: accts, journal: j, loans: s.loans.concat([{ amt: P, bal: P, method: s.loanMethod, years: s.loanTermY, date: App._today(), acct: acctNo }]), loanReceipt: { no: App._receipt('LOAN'), dt: App._now() }, rSeq: s.rSeq + 1, loanStep: 3 });
+  // 実COBOLバックエンド(LOAN.cbl / CGI)で融資実行。LOAN_ASIS登録 + acctNoへ元金入金 + TORIHIKI記録。
+  var body = 'kouza=' + encodeURIComponent(acctNo) + '&amt=' + P + '&method=' + encodeURIComponent(s.loanMethod) + '&years=' + encodeURIComponent(s.loanTermY);
+  fetch('/api/loan', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) return App.setState({ loanErr: App.T().err_amount });
+      var accts = App.state.accounts.map(function (a) { return a.no === acctNo ? Object.assign({}, a, { balance: a.balance + P }) : a; });
+      var newLoan = { loanId: d.loanId, amt: P, bal: P, method: s.loanMethod, years: s.loanTermY, date: App._today(), acct: acctNo };
+      App.setState({ accounts: accts, loans: App.state.loans.concat([newLoan]), loanReceipt: { no: App._receipt('LOAN'), dt: App._now() }, rSeq: App.state.rSeq + 1, loanStep: 3 });
+    })
+    .catch(function () { App.setState({ loanErr: App.T().err_amount }); });
 };
 App.loanOpenDetail = function (i) { return function () { App.setState({ loanDetailIdx: i }); }; };
 App.loanCloseDetail = function () { App.setState({ loanDetailIdx: null }); };
@@ -460,20 +481,32 @@ App.loanRepayExecute = function () {
   var T = App.T(), s = App.state, me = App._find(s.me), idx = s.repayIdx, l = s.loans[idx], principal = App._amt(s.repayAmt);
   if (principal <= 0) return App.setState({ repayErr: T.err_amount });
   if (principal > l.bal) return App.setState({ repayErr: T.repay_err_over });
-  var interest = Math.round(l.bal * LOAN_RATE / 12), fee = REPAY_FEE, total = principal + interest + fee;
-  if (total > me.balance) return App.setState({ repayErr: T.repay_err_bal + '（' + T.balanceLabel + ' ' + App._f(me.balance) + '）' });
-  var accts = App._upd(me.no, -total), newBal = l.bal - principal;
-  var loans = s.loans.map(function (x, i) { return i === idx ? Object.assign({}, x, { bal: newBal }) : x; });
-  var history = s.loanHistory, completed = false;
-  if (newBal <= 0) { history = history.concat([Object.assign({}, loans[idx], { closedDate: App._today() })]); loans = loans.filter(function (_, i) { return i !== idx; }); completed = true; }
-  var j = s.journal.concat([{ date: App._today(), no: me.no, type: '融資返済', amt: total, memoJa: '', memoKo: '' }]);
-  var label = (s.lang === 'ko' ? '대출계약 No.' : 'ローン契約 No.') + (idx + 1);
-  App.setState({ accounts: accts, loans: loans, loanHistory: history, journal: j, repayReceipt: { no: App._receipt('REPAY'), dt: App._now(), principal: principal, interest: interest, fee: fee, total: total, afterBal: Math.max(0, newBal), completed: completed, label: label }, repayIdx: completed ? null : idx, rSeq: s.rSeq + 1 });
+  // 実COBOLバックエンド(REPAY.cbl / CGI)で返済。利息・手数料550・残高更新はDB確定値。
+  var body = 'loanId=' + encodeURIComponent(l.loanId) + '&principal=' + principal;
+  fetch('/api/repay', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) return App.setState({ repayErr: T.repay_err_bal });
+      var interest = Number(d.interest), fee = Number(d.fee), total = Number(d.total), newBal = Number(d.loanBalance), completed = !!d.closed;
+      var accts = App.state.accounts.map(function (a) { return a.no === me.no ? Object.assign({}, a, { balance: a.balance - total }) : a; });
+      var loans = App.state.loans.slice(), history = App.state.loanHistory;
+      if (completed) { history = history.concat([Object.assign({}, loans[idx], { bal: 0, closedDate: App._today() })]); loans = loans.filter(function (_, i) { return i !== idx; }); }
+      else { loans = loans.map(function (x, i) { return i === idx ? Object.assign({}, x, { bal: newBal }) : x; }); }
+      var label = (s.lang === 'ko' ? '대출계약 No.' : 'ローン契約 No.') + (idx + 1);
+      App.setState({ accounts: accts, loans: loans, loanHistory: history, repayReceipt: { no: App._receipt('REPAY'), dt: App._now(), principal: principal, interest: interest, fee: fee, total: total, afterBal: Math.max(0, newBal), completed: completed, label: label }, repayIdx: completed ? null : idx, rSeq: App.state.rSeq + 1 });
+    })
+    .catch(function () { App.setState({ repayErr: T.repay_err_bal }); });
 };
 
 /* ============================================================
    Notices
    ============================================================ */
+App.loadNotices = function () {
+  fetch('/api/notice')
+    .then(function (r) { return r.json(); })
+    .then(function (d) { if (d && d.ok && d.notices) App.setState({ dbNotices: d.notices }); })
+    .catch(function () {});
+};
 App.goNoticeNew = function () { App.setState(function (s) { return { page: 'notice_new', pageStack: s.pageStack.concat([s.page]) }; }); };
 App.openNotice = function (n) { App.setState(function (s) { return { page: 'notice_detail', pageStack: s.pageStack.concat([s.page]), selNotice: n }; }); };
 App.onNcTitle = function (e) { App.setState({ ncTitle: e.target.value }); };
@@ -482,8 +515,12 @@ App.onNcFile = function (e) { var names = Array.prototype.slice.call(e.target.fi
 App.submitNotice = function () {
   var T = App.T(), title = (App.state.ncTitle || '').trim();
   if (!title) return;
-  var note = { date: App._now().slice(0, 10).replace(/-/g, '/'), tag: T.nc_tag, title: title, body: (App.state.ncBody || '').trim(), files: App.state.ncFiles };
-  App.setState({ extraNotices: [note].concat(App.state.extraNotices), page: 'home', pageStack: [], ncTitle: '', ncBody: '', ncFiles: [] });
+  // 実COBOLバックエンド(NOTICE.cbl / CGI)へ登録 → DBから再読込
+  var body = 'title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent((App.state.ncBody || '').trim()) + '&tag=' + encodeURIComponent(T.nc_tag);
+  fetch('/api/notice', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function () { App.loadNotices(); App.setState({ page: 'home', pageStack: [], ncTitle: '', ncBody: '', ncFiles: [] }); })
+    .catch(function () { App.setState({ page: 'home', pageStack: [], ncTitle: '', ncBody: '', ncFiles: [] }); });
 };
 App.deleteNotice = function (kind, idx) {
   if (!window.confirm(App.state.lang === 'ko' ? '이 공지를 삭제하시겠습니까?' : 'このお知らせを削除しますか？')) return;
@@ -495,13 +532,40 @@ App.deleteNotice = function (kind, idx) {
    Meisai (transaction history)
    ============================================================ */
 App._meisaiAcct = function () { return App._find(App.state.meisaiAcct || App.state.repAcct || App.state.me) || App.me(); };
+// 実COBOLバックエンド(MEISAI.cbl / CGI)から明細を取得し、当該口座のjournalをDB正本で置換する
+App.loadMeisai = function (kouza) {
+  kouza = String(kouza || '');
+  if (!kouza) return;
+  fetch('/api/meisai?kouza=' + encodeURIComponent(kouza))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok || !d.rows) return;
+      var kmap = { '1': '入金', '2': '出金', '3': '振込' };
+      var mapped = d.rows.slice().reverse().map(function (row) {
+        var kbn = String(row.kbn), aite = Number(row.aite || 0), mj, mk;
+        if (row.memo) { mj = row.memo; mk = row.memo; }               // DB(TEKIYOU)에 원본 적요가 있으면 그대로
+        else if (kbn === '3') { mj = (aite ? aite + '宛 ' : '') + '振込'; mk = (aite ? aite + '로 ' : '') + '이체'; }
+        else if (kbn === '2') { mj = '出金'; mk = '출금'; }
+        else if (kbn === '1' && aite) { mj = aite + 'より振込入金'; mk = aite + '로부터 이체입금'; }
+        else { mj = '入金'; mk = '입금'; }
+        return { date: row.date, no: kouza, type: (kmap[kbn] || '入金'),
+                 amt: Number(row.kingaku), memoJa: mj, memoKo: mk, _dbAfter: Number(row.afterBal) };
+      });
+      var other = App.state.journal.filter(function (j) { return j.no !== kouza; });
+      App.setState({ journal: other.concat(mapped) });
+    })
+    .catch(function () {});
+};
 App._meisaiRaw = function () {
   var T = App.T(), me = App._meisaiAcct(), ko = App.state.lang === 'ko';
   var tx = App.state.journal.filter(function (j) { return j.no === me.no; });
   var sign = function (t) { return (t.type === '入金' || t.type === '融資実行') ? 1 : -1; };
   var totalDelta = tx.reduce(function (s, t) { return s + sign(t) * t.amt; }, 0);
   var run = me.balance - totalDelta;
-  var withBal = tx.map(function (t) { run += sign(t) * t.amt; return Object.assign({}, t, { _after: run }); });
+  var withBal = tx.map(function (t) {
+    if (t._dbAfter != null) return Object.assign({}, t, { _after: t._dbAfter }); // DB(TORIHIKI)由来はafterBalをそのまま採用(手数料込みの確定残高)
+    run += sign(t) * t.amt; return Object.assign({}, t, { _after: run });
+  });
   var f = App.state.meisaiType;
   if (f !== 'all') withBal = withBal.filter(function (t) { return t.type === f; });
   if (App.state.meisaiFrom) withBal = withBal.filter(function (t) { return t.date >= App.state.meisaiFrom; });
@@ -549,7 +613,7 @@ App.onMeisaiFrom = function (e) { App.setState({ meisaiFrom: e.target.value }); 
 App.onMeisaiTo = function (e) { App.setState({ meisaiTo: e.target.value }); };
 App.meisaiClear = function () { App.setState({ meisaiType: 'all', meisaiFrom: '', meisaiTo: '' }); };
 App.toggleMeisaiPick = function () { App.setState(function (s) { return { meisaiPickOpen: !s.meisaiPickOpen }; }); };
-App.pickMeisaiAcct = function (no) { return function () { App.setState({ meisaiAcct: no, meisaiPickOpen: false, meisaiType: 'all', meisaiFrom: '', meisaiTo: '' }); }; };
+App.pickMeisaiAcct = function (no) { return function () { App.loadMeisai(no); App.setState({ meisaiAcct: no, meisaiPickOpen: false, meisaiType: 'all', meisaiFrom: '', meisaiTo: '' }); }; };
 
 /* ============================================================
    Additional account opening (settings)
@@ -564,9 +628,18 @@ App.naConfirm = function () { var T = App.T(); if (!App.state.naPw) return App.s
 App.naBack = function () { App.setState({ naStep: 1, naErr: null }); };
 App.naExecute = function () {
   var s = App.state, me = App.me(), store = STORES.find(function (x) { return x.code === s.naStore; }) || STORES[0];
-  var no = String(parseInt(store.code, 10)) + String(Math.floor(Math.random() * 900000) + 100000);
-  var acc = { no: no, kanji: me.kanji, kana: me.kana, type: s.naType, balance: 0, status: '正常', branch: store.name, bcode: store.code, pw: me.pw, prof: me.prof };
-  App.setState({ accounts: s.accounts.concat([acc]), ownNos: s.ownNos.concat([no]), naResult: { tenban: store.code, store: store.name, no: no, type: s.naType }, naStep: 3 });
+  // 追加口座も同じ SIGNUP.cbl で DB 開設(名義は本人を踏襲)。
+  var body = 'kanji=' + encodeURIComponent(me.kanji || '') + '&kana=' + encodeURIComponent(me.kana || '') +
+    '&type=' + encodeURIComponent(s.naType) + '&branch=' + encodeURIComponent(store.code) + '&pw=' + encodeURIComponent(s.naPw);
+  fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok || !d.kouza) return App.setState({ naErr: App.T().su_err_req });
+      var no = String(d.kouza);
+      var acc = { no: no, kanji: me.kanji, kana: me.kana, type: s.naType, balance: 0, status: '正常', branch: store.name, bcode: store.code, pw: s.naPw, prof: me.prof };
+      App.setState({ accounts: App.state.accounts.concat([acc]), ownNos: App.state.ownNos.concat([no]), naResult: { tenban: store.code, store: store.name, no: no, type: s.naType }, naStep: 3 });
+    })
+    .catch(function () { App.setState({ naErr: App.T().su_err_req }); });
 };
 App.naToHome = function () { App.setState({ page: 'home', pageStack: [] }); };
 
@@ -792,7 +865,7 @@ function tplHomeTiles() {
 }
 function tplNotices() {
   var T = App.T(), s = App.state;
-  var base = T.notices.map(function (n, i) { return { date: n.date, tag: n.tag, title: n.title, files: [], body: '', _kind: 'base', _idx: i }; }).filter(function (n) { return s.hiddenBase.indexOf(n._idx) === -1; });
+  var base = s.dbNotices.map(function (n, i) { return { date: n.date, tag: n.tag, title: n.title, files: [], body: '', _kind: 'base', _idx: i }; }).filter(function (n) { return s.hiddenBase.indexOf(n._idx) === -1; });
   var extra = s.extraNotices.map(function (n, i) { return { date: n.date, tag: n.tag, title: n.title, files: n.files || [], body: n.body || '', _kind: 'extra', _idx: i }; });
   var all = extra.concat(base);
   var itemsHtml = all.map(function (n) {
@@ -818,50 +891,6 @@ function tplNotices() {
 }
 function tplHome() { return tplHomeCard() + tplHomeTiles() + tplNotices(); }
 
-/* ============================================================
-   Deposit (入金)
-   ============================================================ */
-function tplNyushukkin() {
-  var T = App.T(), s = App.state, me = App.me();
-  var steps = stepIndicator(s.cashStep, [T.dep_title, T.trStep2, T.dep_done]);
-  var body = '';
-  if (s.cashStep === 1) {
-    body = '<div class="card-box">' +
-      '<div style="display:grid;grid-template-columns:120px 1fr;gap:14px 16px;align-items:center;max-width:480px">' +
-      '<label class="f-label">' + esc(T.fromLabel) + '</label><div style="font-size:13.5px">' + esc(typeDisp(me.type)) + ' ' + esc(me.branch) + ' <span style="font-family:\'IBM Plex Mono\',monospace">' + esc(me.no) + '</span></div>' +
-      '<label class="f-label">' + esc(T.l_amount2) + '</label><div class="row" style="gap:8px"><input value="' + esc(s.cashAmt) + '" data-onchange="' + onChange(App.chg('cashAmt')) + '" inputmode="numeric" placeholder="0" class="inp"><span style="font-size:13px;color:#6b7a90">' + esc(T.yen) + '</span></div>' +
-      '</div>' +
-      (s.cashErr ? '<div class="err-box">⚠ ' + esc(s.cashErr) + '</div>' : '') +
-      '<div class="note-txt">' + esc(T.dep_note) + '</div>' +
-      '<div class="row" style="gap:10px"><button class="btn-back" data-click="' + onClick(App.goHome) + '">' + esc(T.backBtn) + '</button><button class="btn-primary" data-click="' + onClick(App.cashConfirm) + '">' + esc(T.confirmBtn) + '</button></div>' +
-      '</div>';
-  } else if (s.cashStep === 2) {
-    var amt = App._amt(s.cashAmt);
-    body = '<div class="card-box">' +
-      '<div style="font-size:13px;color:#4a5a6a">' + esc(T.confirmLead) + '</div>' +
-      '<div class="tbl-box"><div class="rowgrid">' +
-      '<div class="amt-label">' + esc(T.fromLabel) + '</div><div class="amt-cell">' + esc(typeDisp(me.type)) + ' ' + esc(me.branch) + ' ' + esc(me.no) + '</div>' +
-      '<div class="amt-label-strong">' + esc(T.dep_title) + '</div><div class="amt-cell-strong">' + App._f(amt) + '</div>' +
-      '</div></div>' +
-      '<div class="row" style="gap:10px"><button class="btn-back" data-click="' + onClick(App.cashBack) + '">' + esc(T.backBtn) + '</button><button class="btn-exec" data-click="' + onClick(App.cashExecute) + '">' + esc(T.dep_exec) + '</button></div>' +
-      '</div>';
-  } else {
-    var r = s.cashReceipt;
-    body = '<div class="done-box">' +
-      '<div class="done-icon">✓</div>' +
-      '<div style="font-size:17px;font-weight:900;color:#a06e00">' + esc(T.dep_done) + '</div>' +
-      '<div style="border:1px solid #eef1f6;border-radius:12px;overflow:hidden;width:100%;max-width:440px"><div class="rowgrid">' +
-      '<div class="amt-label">' + esc(T.receiptLabel) + '</div><div class="amt-cell-bold">' + esc(r ? r.no : '') + '</div>' +
-      '<div class="amt-label">' + esc(T.dtLabel) + '</div><div class="amt-cell">' + esc(r ? r.dt : '') + '</div>' +
-      '<div class="amt-label">' + esc(T.dep_title) + '</div><div class="amt-cell">' + App._f(App._amt(s.cashAmt)) + '</div>' +
-      '<div class="amt-label-strong">' + esc(T.afterBal) + '</div><div class="amt-cell-strong">' + App._f(App.me().balance) + '</div>' +
-      '</div></div>' +
-      '<button class="btn-primary" data-click="' + onClick(App.goHome) + '">' + esc(T.toHome) + '</button>' +
-      '</div>';
-  }
-  return '<button class="back-link" data-click="' + onClick(App.goHome) + '">‹ ' + esc(T.toHome) + '</button>' +
-    '<div style="font-size:21px;font-weight:900">' + esc(T.dep_title) + '</div>' + steps + body;
-}
 
 /* ============================================================
    Transfer (振込)
@@ -916,7 +945,7 @@ function tplTrAccount() {
     '</div></div>' +
     '<div class="row" style="justify-content:space-between;background:#fffbe9;border:1px solid #f0d98a;border-radius:10px;padding:11px 15px"><span style="font-size:12px;color:#8a6d00;font-weight:700">' + esc(T.fromLabel) + ' ' + esc(T.balanceLabel) + '</span><span style="font-size:17px;font-weight:900;font-family:\'IBM Plex Mono\',monospace">' + App._f(me.balance) + '</span></div>' +
     '<div style="display:grid;grid-template-columns:130px 1fr;gap:14px 16px;align-items:center;max-width:520px">' +
-    '<label class="f-label">' + esc(T.l_accno) + '</label><input value="' + esc(s.trTo) + '" data-onchange="' + onChange(App.chg('trTo')) + '" inputmode="numeric" placeholder="0000000000" style="padding:10px 13px;border:1px solid #d3dbe8;border-radius:9px;font-size:14px;width:100%;font-family:\'IBM Plex Mono\',monospace;max-width:220px">' +
+    '<label class="f-label">' + esc(T.l_accno) + '</label><input value="' + esc(s.trTo) + '" data-onchange="' + onChange(App.chg('trTo')) + '" inputmode="numeric" placeholder="0000000" style="padding:10px 13px;border:1px solid #d3dbe8;border-radius:9px;font-size:14px;width:100%;font-family:\'IBM Plex Mono\',monospace;max-width:220px">' +
     '<label class="f-label">' + esc(T.l_amount) + '</label><div class="row" style="gap:8px"><input value="' + esc(s.trAmt) + '" data-onchange="' + onChange(App.chg('trAmt')) + '" inputmode="numeric" placeholder="0" class="inp"><span style="font-size:13px;color:#6b7a90">' + esc(T.yen) + '</span></div>' +
     '<label class="f-label">' + esc(T.tr_resv) + '</label><select data-value="' + s.trResvDate + '" data-onchange="' + onChange(App.onTrResv) + '" style="padding:10px 13px;border:1px solid #d3dbe8;border-radius:9px;font-size:14px;width:100%;max-width:240px">' + opts + '</select>' +
     '</div>' +
@@ -1386,7 +1415,6 @@ function pageBody() {
   var s = App.state;
   switch (s.page) {
     case 'home': return tplHome();
-    case 'nyushukkin': return tplNyushukkin();
     case 'transfer': return tplTransfer();
     case 'loan': return tplLoan();
     case 'meisai': return tplMeisai();

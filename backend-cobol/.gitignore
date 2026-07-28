@@ -1,0 +1,24 @@
+# ============================================================
+#  ASIS backend-cobol .gitignore
+# ============================================================
+
+# 再配布不可のベンダー成果物(各自ダウンロードして配置)
+docker/vendor/*.zip
+docker/vendor/*.tar.gz
+docker/vendor/*.rpm
+
+# ビルド成果物
+build/gen/
+build/bin/
+build/lib/
+*.so
+*.dll
+*.o
+*.cob
+
+# バッチ入出力(EBCDIC 生成物)
+data/*.DAT
+data/*.RPT
+data/*.SORTED
+data/*.WORK
+*.tmp
