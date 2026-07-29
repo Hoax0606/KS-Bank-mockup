@@ -161,19 +161,35 @@ make GIXHOME=/opt/gixsql          # gixpp -> cobc。bin/*.cgi, bin/YAKANBAT, lib
 
 ---
 
-## 5. 夜間バッチ(§7)
+## 5. 夜間バッチ(§7) — 10 ステップ
 
-バッチは **4 ステップの独立プロセス**で実行する(`run_batch.sh` が順に起動):
-`MKDAT`(当日取引生成)→ `SORTDAT`(口座番号順)→ `YAKANBAT`(反映+KOUZA更新+REPORT.WORK)
-→ `SORTRPT`(名義カナEBCDIC順で MEISAI.RPT 出力)。
+バッチは **10 ステップの独立プロセス**で実行する(`run_batch.sh` が順に起動)。
+前半 4 = コア反映(DB 更新あり)、後半 6 = 日次帳票(読取専用, 純 COBOL コーデックで復号)。
+
+| # | プログラム | 役割 | 出力 |
+|---|-----------|------|------|
+| 1 | `MKDAT`    | 当日取引抽出(DB TORIHIKI→flat) | TORIHIKI.DAT (97byte) |
+| 2 | `SORTDAT`  | 口座番号順ソート | TORIHIKI.SORTED |
+| 3 | `YAKANBAT` | 反映 + 利息 + KOUZA 更新 | (DB更新) REPORT.WORK |
+| 4 | `SORTRPT`  | 名義カナ EBCDIC 順ソート | MEISAI.RPT (58byte固定) |
+| 5 | `NIPPOBAT` | 取引日報(区分別 件数・金額) | NIPPO.RPT |
+| 6 | `ZANDABAT` | 日次残高一覧(全口座) | ZANDAKA.RPT |
+| 7 | `TESUBAT`  | 振込手数料 集計 | TESURYO.RPT |
+| 8 | `KYUMBAT`  | 休眠口座(無取引)抽出 | KYUMIN.RPT |
+| 9 | `MASTBAT`  | 口座マスタ一覧表 | KOUZA.LST |
+| 10| `TOKEBAT`  | 統計サマリ(口座数・種別・残高) | TOKEI.RPT |
+
 ※ GnuCOBOL の SORT 動詞は Oracle 使用プロセス内で呼ぶとクラッシュするため、
   SORT は YAKANBAT と別プロセス(SORTDAT/SORTRPT)に分離している。
+※ 5-10 は残高・金額=COMP-3(`DEC-P11/P5`)、口座番号・日付=存10進(`DEC-KEY`)を
+  純 COBOL で復号するため JEF サービス非依存。出力は読みやすい LINE SEQUENTIAL。
 
 ```bash
-# コンテナ内で(ORA_CONN 等はイメージ ENV で設定済み)
-docker exec -w /app/build mb-asis-backend \
-  sh -c 'DAT_IN=/app/data/TORIHIKI.DAT RPT_OUT=/app/data/MEISAI.RPT sh run_batch.sh'
-# => [batch] done. records: 12 x 58byte
+# コンテナ内で(exec シェルには entrypoint の ORA_*/JEF_PORT が無いので注入)
+docker exec -w /app/build \
+  -e ORA_CONN=oracle://oracle:1521/FREEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
+  -e JEF_PORT=9099 mb-asis-backend sh -c 'mkdir -p data; sh run_batch.sh'
+# => [batch] all 10 steps done.
 ```
 
 - 出力 `MEISAI.RPT` は **名義カナ EBCDIC 昇順**(決定打2)、全レコード 58byte、**UTF-8変換なし**
