@@ -7,6 +7,44 @@
 
 ---
 
+## ★ 현재 구현 현황 (2026-07-29 갱신 — 아래 §0~§9보다 우선)
+
+> 아래 본문 §0~§9는 **초기 설계 기록**입니다. 이후 인코딩이 크게 확장되어, 일부 서술
+> (`TEAMENC` 스텁 인코더, CP930, 10자리 계좌번호, `ZANDAKA NUMBER(11)` 등)은 **더 이상 유효하지 않습니다.**
+> 실제 현재 상태는 이 절을 정본으로 삼으세요.
+
+**인코딩 = 전 컬럼 RAW 저장/디코드 (완료)**
+- **텍스트**(명의·지점명·공지·상태·일자 등): 후지쯔 **JEF EBCDIC**. 라이브러리 `net.arnx:jef4j`
+  (charset `x-Fujitsu-JEF-EBCDIC`, SO=0x28/SI=0x29). 초기 데모의 `TEAMENC.cbl`(CP930 스텁)은 **삭제됨**.
+- **금액/이율/원장금액**: **COMP-3 팩10진** RAW.
+- **키**(KOUZA_NO·TORIHIKI_ID·LOAN_ID 등): **존10진 EBCDIC** RAW (각 자리 `F`+숫자, 예 `1000123`→`F1F0F0F0F1F2F3`).
+- **예외(비-RAW)**: 조회용 디코드 뷰 `V_*` + `KOUZA_EXT.KANJI_UTF8/KANA_UTF8` 미러 2컬럼뿐.
+
+**변환 경로**
+- 텍스트: COBOL `CALL "JEFCONV"` → `cobol/JEFCONV.c`(C 브리지, TCP) → `jef/JefServer.java`(상주 서비스
+  `127.0.0.1:9099`, `jef4j.jar` 사용). 모드 `E`=인코드(UTF8→JEF hex), `D`=디코드(bytes), `H`=hex입력 디코드.
+  entrypoint.sh가 컨테이너 기동 시 JefServer를 백그라운드 실행.
+- 금액/키: COBOL 코덱 카피북에서 직접. `copy/WTXT.cpy`+`copy/PTXT.cpy`(텍스트 JEF hex 왕복),
+  `copy/WPACK.cpy`+`copy/PPACK.cpy`(COMP-3 금액 + 존10진 키).
+- CGI 패턴: 읽기 `SELECT RAWTOHEX(col)` → 디코드, 쓰기 `HEXTORAW(:hex)`. 온라인 CGI 11개 + 배치 전부 적용.
+
+**조회용 디코드 뷰** (DBeaver 등에서 원본 RAW를 사람이 읽기 위함, 원본 테이블은 불변):
+`V_KOUZA / V_TORIHIKI / V_LOAN / V_REPAY / V_NOTICE`. 함수 `FN_UNZONE(raw)`=존10진→숫자,
+`FN_UNPACK(raw)`=COMP-3→숫자, `FN_EBC(raw)`=단바이트 EBCDIC→문자(`WE8EBCDIC500`).
+일본어 텍스트는 SQL만으로 디코드 불가라, `V_KOUZA`의 명의는 UTF-8 미러 컬럼을 사용.
+
+**⚠️ 최우선 미결 — DDL/시드 소스가 라이브 DB와 불일치**
+`sql/01_ddl.sql`·`02_seed.sql`은 **RAW 전환 이전(NUMBER/평문)** 상태입니다. 라이브 Oracle만 ALTER로
+RAW화됐고 생성 스크립트(gen/seedgen)는 남아있지 않습니다. 따라서 **새 Oracle을 이 DDL/시드로 초기화하면
+코드(RAW 기대)와 어긋나 동작하지 않습니다.** 현재 실동작 환경은 서버 라이브 DB뿐이며, 프레시 재구축을 하려면
+라이브 DB에서 RAW 스키마/데이터를 덤프해 `01_ddl.sql`(전 컬럼 RAW)·`02_seed.sql`(HEXTORAW 시드)을
+재생성해야 합니다.
+
+**배치**(§5)는 실거래 연동 방식(옵션1): 온라인 CGI가 이미 실시간 반영하므로, 배치는 재INSERT 없이
+명세 생성 + 이자 가산만 담당(普通 종별만, `floor(잔액/365000)`). 파이프라인 4단계는 그대로.
+
+---
+
 ## 0. 前提と決定事項(重要)
 
 このデモの実フロントエンド(`frontend/app.js`)は **完全にクライアント完結**で、
