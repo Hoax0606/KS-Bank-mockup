@@ -127,3 +127,14 @@ CREATE OR REPLACE VIEW V_KOUZA AS
          e.KANJI_UTF8          AS MEIGI_KANJI,   -- JEF는 DB디코드 불가 → 미러
          fn_unpack(k.ZANDAKA)  AS ZANDAKA
     FROM KOUZA k LEFT JOIN KOUZA_EXT e ON e.KOUZA_NO = k.KOUZA_NO;
+
+-- 거래 디코드 뷰(DT/KBN 은 EBCDIC 숫자라 fn_unzone 으로 판독).
+CREATE OR REPLACE VIEW V_TORIHIKI AS
+  SELECT fn_unzone(torihiki_id)  AS TORIHIKI_ID,
+         fn_unzone(kouza_no)     AS KOUZA_NO,
+         fn_unzone(torihiki_dt)  AS TORIHIKI_DT,
+         fn_unzone(torihiki_kbn) AS TORIHIKI_KBN,
+         fn_unpack(kingaku)      AS KINGAKU,
+         fn_unzone(aite_kouza)   AS AITE_KOUZA,
+         fn_unpack(tesuryo)      AS TESURYO
+    FROM TORIHIKI;

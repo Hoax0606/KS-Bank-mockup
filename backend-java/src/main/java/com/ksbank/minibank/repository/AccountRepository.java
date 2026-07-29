@@ -2,6 +2,7 @@ package com.ksbank.minibank.repository;
 
 import java.util.Optional;
 import com.ksbank.minibank.domain.AccountRow;
+import com.ksbank.minibank.domain.BalanceRow;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -42,5 +43,30 @@ public class AccountRepository {
                     rs.getBytes("joutai"), rs.getBytes("zandaka"),
                     rs.getBytes("acct_type"), rs.getString("kanji_utf8")))
                 : Optional.empty());
+    }
+
+    /** 잔액/상태 조회(이체 등에서 사용). 없으면 empty. */
+    public Optional<BalanceRow> findBalance(byte[] kouzaNo) {
+        return jdbc.query("SELECT zandaka, joutai FROM kouza WHERE kouza_no = ?",
+            ps -> ps.setBytes(1, kouzaNo),
+            rs -> rs.next()
+                ? Optional.of(new BalanceRow(rs.getBytes("zandaka"), rs.getBytes("joutai")))
+                : Optional.empty());
+    }
+
+    /** 자행 계좌 존재 여부. */
+    public boolean exists(byte[] kouzaNo) {
+        Integer n = jdbc.query("SELECT count(*) FROM kouza WHERE kouza_no = ?",
+            ps -> ps.setBytes(1, kouzaNo),
+            rs -> rs.next() ? rs.getInt(1) : 0);
+        return n != null && n > 0;
+    }
+
+    /** 잔액 갱신(RAW COMP-3). */
+    public void updateBalance(byte[] kouzaNo, byte[] zandakaRaw) {
+        jdbc.update("UPDATE kouza SET zandaka = ? WHERE kouza_no = ?", ps -> {
+            ps.setBytes(1, zandakaRaw);
+            ps.setBytes(2, kouzaNo);
+        });
     }
 }
