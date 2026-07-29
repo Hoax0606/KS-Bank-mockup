@@ -82,6 +82,7 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 ## 5. 라이브 서버 운영 (COBOL, 사내 서버)
 
 절차는 `README.md` §4에 명령까지 정리돼 있음. 요약:
+- **코드 관리**: 서버 `~/minibank-demo`는 **GitHub의 git clone**(코드는 git, 데이터만 서버 고유). 갱신 = `cd ~/minibank-demo && git pull` → 재빌드(§4.4). ※vendor 파일은 깃에 없으니 유지/재배치 주의. (구 scp 사본 백업은 `~/minibank-demo.bak`, 검증 후 삭제 가능)
 - **접속**: Tailscale 켜고 `ssh -i <키> <계정>@<서버주소>`
 - **웹**: `http://<서버주소>:8090/` , **DB**: `<서버주소>:1521/FREEPDB1`
 - **배치 실행**: `sudo docker exec ... mb-asis-backend sh -c 'sh run_batch.sh'` (env 주입 필요 — README §4.2)

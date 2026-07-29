@@ -127,9 +127,12 @@ sudo docker restart mb-asis-backend              # 백엔드만 재기동(데이
 ### 4.4 소스 갱신 후 재배포 (백엔드 이미지 재빌드)
 
 Oracle 컨테이너(라이브 데이터)는 건드리지 않고 **백엔드 이미지만** 재빌드/교체합니다.
+서버 `~/minibank-demo`는 **git clone**이므로 코드 갱신은 `git pull`로 합니다(코드는 git, 데이터만 서버 볼륨).
 
 ```bash
-# 1) 최신 소스 반영: 이 리포를 서버에 clone/pull 하거나 변경 파일을 scp
+# 1) 최신 소스 반영
+cd ~/minibank-demo && git pull
+#    ※ vendor 파일(깃에 없음)은 그대로 유지됨. 없으면 vendor/README.md 참고해 재배치.
 # 2) 이미지 재빌드 (★ 빌드 컨텍스트는 반드시 절대경로 — sudo 아래 ~ 는 /root)
 sudo docker build -f backend-cobol/docker/Dockerfile.asis -t mb-asis-backend:latest /home/<계정>/minibank-demo
 # 3) 컨테이너 교체 (기존 네트워크/포트/환경 유지)
