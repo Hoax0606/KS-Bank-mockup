@@ -72,6 +72,23 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build   # → ht
 - **재배포**(소스 변경 시): 백엔드 이미지만 재빌드(§4.4). ★**oracle 컨테이너는 절대 건드리지 말 것**(라이브 데이터).
 - **데이터 초기화**: `sql/01_ddl`+`02_seed` 재적용(§4.5)
 
+### DB 직접 조회 (DBeaver 등)
+
+> 원본 테이블은 **RAW 바이트(bytea/RAW)** 라 사람이 못 읽습니다. 사람이 읽으려면 **디코드 뷰 `V_*`** 를 보세요.
+
+| 대상 | Type | Host | Port | DB/Service | 계정 |
+|------|------|------|------|-----------|------|
+| COBOL판 (라이브 서버) | Oracle | `<서버주소>` | `1521` | `FREEPDB1` | `minibank` / `minibank` |
+| Java판 (로컬 compose) | PostgreSQL | `localhost` | **`5433`** ⚠️ | `minibank` | `minibank` / `minibank` |
+
+- ⚠️ Java판 포트는 **5433**. 호스트에 native PostgreSQL(5432)이 있으면 겹치므로 compose는 5433으로 공개.
+- 볼 것: 원본 테이블 `KOUZA`/`TORIHIKI`(RAW) ↔ 디코드 뷰 `V_KOUZA`/`V_TORIHIKI`/`V_LOAN`/`V_REPAY`/`V_NOTICE`.
+  ```sql
+  SELECT * FROM v_kouza ORDER BY kouza_no;        -- 사람이 읽는 값
+  SELECT encode(meigi_kanji,'hex') FROM kouza;    -- (PG) 원본 RAW 바이트 확인
+  ```
+- 디코드 함수: `FN_UNZONE`(키)·`FN_UNPACK`(금액)·`FN_EBC`(단바이트 EBCDIC, PG는 미보강). 일본어(JEF)는 DB만으론 디코드 불가 → `V_KOUZA` 명의는 UTF-8 미러 사용.
+
 ---
 
 ## 6. 개발 이어가기
