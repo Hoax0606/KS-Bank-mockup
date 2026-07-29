@@ -61,6 +61,18 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build   # → ht
 ```
 로그인 계정은 `DEMO.md` §2 (기본: `001 / 1000123 / ks1234`).
 
+### 접속 주소 한눈에 (테스트용)
+
+| 대상 | 화면(브라우저) | API | DB(DBeaver) |
+|------|----------------|-----|-------------|
+| **Java** (로컬) | `http://localhost:8081/` | `localhost:8081/api/...` | PostgreSQL `localhost:5433` / `minibank` (minibank/minibank) |
+| **COBOL** (로컬) | `http://localhost:8080/` | `localhost:8080/api/...` | Oracle `localhost:1521/FREEPDB1` (minibank/minibank) |
+| **COBOL** (라이브 서버) | `http://<서버주소>:8090/` | `<서버주소>:8090/api/...` | Oracle `<서버주소>:1521/FREEPDB1` (minibank/minibank) |
+
+- **포트 분리**: 8080=COBOL 화면 · 8081=Java 화면 · 1521=Oracle · 5433=PostgreSQL (서로 안 겹침, 동시에 켜도 됨)
+- 두 백엔드는 **서로 다른 DB**를 봄(COBOL→Oracle, Java→PostgreSQL) → 한쪽에서 이체해도 다른 쪽엔 반영 안 됨(정상)
+- 화면·기능·로그인 계정은 두 백엔드 동일. DB는 원본=RAW, 조회는 `V_*` 뷰(§5)
+
 ---
 
 ## 5. 라이브 서버 운영 (COBOL, 사내 서버)
