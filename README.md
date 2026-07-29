@@ -73,14 +73,79 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 ---
 
-## 4. 배포된 데모 서버
+## 4. 배포된 데모 서버 (라이브)
 
-COBOL 백엔드가 리눅스 서버에 빌드·구동 중입니다 (Oracle 연결·거래기록 E2E 확인 완료).
+COBOL 백엔드가 사내 리눅스 서버(Ubuntu)에 빌드·구동 중입니다 (온라인·10단계 배치 E2E 검증 완료).
 
-- 접속: **사내 Tailscale 망**을 통해 접속합니다 (서버 주소·포트·접속 권한은 담당자에게 문의).
-- DB 조회 시 원본은 RAW라 사람이 못 읽으므로, DBeaver 등에서는 디코드 뷰 `V_KOUZA / V_TORIHIKI / V_LOAN / V_REPAY / V_NOTICE`를 보세요 (함수 `FN_UNZONE`=키, `FN_UNPACK`=금액, `FN_EBC`=단바이트 EBCDIC).
+### 4.1 접속
 
-> 서버 주소 및 Tailscale 접속 권한은 seoyeong 님(seoyeong.jeong@ks-infosys.com)에게 요청하세요.
+> 🔒 **서버 IP·포트·SSH 계정·SSH 키·sudo 비밀번호는 공개 리포에 적지 않습니다.**
+> 아래 값은 담당자(seoyeong 님, seoyeong.jeong@ks-infosys.com)에게 요청하세요.
+
+- **망**: 사내 **Tailscale** 망 안에서만 접속됩니다 (먼저 Tailscale 로그인 필요).
+- **SSH**: 키 기반 로그인. 담당자에게 ①서버 주소 ②SSH 계정 ③SSH 개인키(또는 본인 공개키 등록)를 받으세요.
+  ```bash
+  ssh -i <SSH키> <계정>@<서버주소>
+  ```
+- **웹/DB 포트** (Tailscale 망 내):
+  - 프론트+API: `http://<서버주소>:8090/`
+  - Oracle: `<서버주소>:1521` / 서비스 `FREEPDB1` / `minibank`(데모 비번, §8)
+- DB 조회 시 원본은 RAW라 사람이 못 읽으므로, DBeaver 등에서는 디코드 뷰
+  `V_KOUZA / V_TORIHIKI / V_LOAN / V_REPAY / V_NOTICE` 사용 (함수 `FN_UNZONE`=키, `FN_UNPACK`=금액, `FN_EBC`=단바이트 EBCDIC).
+
+### 4.2 배치 실행 (10단계 야간배치)
+
+컨테이너 안에서 `run_batch.sh`를 실행합니다. **exec 셸에는 entrypoint의 `ORA_*`/`JEF_PORT`가
+상속되지 않으므로 주입 필수**입니다.
+
+```bash
+# 서버(SSH 접속 후). 로컬 Docker Desktop이면 'sudo' 빼고 동일.
+sudo docker exec -w /app/build \
+  -e ORA_CONN=oracle://oracle:1521/FREEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
+  -e JEF_PORT=9099 mb-asis-backend \
+  sh -c 'mkdir -p data && sh run_batch.sh'
+# => [batch] all 10 steps done.
+```
+
+- 산출물은 컨테이너 내 `/app/build/data/` (예: `MEISAI.RPT`, `NIPPO.RPT`, `ZANDAKA.RPT`,
+  `TESURYO.RPT`, `KYUMIN.RPT`, `KOUZA.LST`, `TOKEI.RPT`). 10단계 상세는 `backend-cobol/README.md` §5.
+- 5~10(帳票)은 읽기 전용. 3(YAKANBAT)은 당일거래가 있을 때만 이자를 가산(거래 0건이면 잔액 불변).
+- 리포트 확인 예: `sudo docker exec mb-asis-backend cat /app/build/data/TOKEI.RPT`
+
+### 4.3 상태 확인 / 재기동
+
+```bash
+sudo docker ps                                   # 컨테이너 상태
+sudo docker logs --tail 20 mb-asis-backend       # 백엔드 로그(JEF 서비스 기동 등)
+sudo docker restart mb-asis-backend              # 백엔드만 재기동(데이터 보존)
+```
+
+### 4.4 소스 갱신 후 재배포 (백엔드 이미지 재빌드)
+
+Oracle 컨테이너(라이브 데이터)는 건드리지 않고 **백엔드 이미지만** 재빌드/교체합니다.
+
+```bash
+# 1) 최신 소스 반영: 이 리포를 서버에 clone/pull 하거나 변경 파일을 scp
+# 2) 이미지 재빌드 (★ 빌드 컨텍스트는 반드시 절대경로 — sudo 아래 ~ 는 /root)
+sudo docker build -f backend-cobol/docker/Dockerfile.asis -t mb-asis-backend:latest /home/<계정>/minibank-demo
+# 3) 컨테이너 교체 (기존 네트워크/포트/환경 유지)
+sudo docker rm -f mb-asis-backend
+sudo docker run -d --name mb-asis-backend --network mbnet -p 8090:80 \
+  -e ORA_USER=minibank -e ORA_PASS=minibank -e TZ=Asia/Tokyo \
+  --restart unless-stopped mb-asis-backend:latest
+```
+
+### 4.5 데이터 초기화 (시드 상태로 리셋)
+
+라이브 Oracle을 깨끗한 시드로 되돌립니다 (거래 삭제·잔액 원복). Oracle 컨테이너 내 sqlplus로 재적용:
+
+```bash
+sudo docker cp backend-cobol/sql/01_ddl.sql  oracle:/tmp/01_ddl.sql
+sudo docker cp backend-cobol/sql/02_seed.sql oracle:/tmp/02_seed.sql
+sudo docker exec -i oracle sqlplus -s /nolog @/tmp/01_ddl.sql  </dev/null   # 드롭/재생성
+sudo docker exec -i oracle sqlplus -s /nolog @/tmp/02_seed.sql </dev/null   # 재적재
+# 확인: TORIHIKI=0, KOUZA=8
+```
 
 ---
 
