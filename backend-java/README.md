@@ -5,14 +5,15 @@ COBOL ASIS 백엔드의 Java 이식. **RAW 바이트 저장(bytea) 유지**, 코
 
 > 기존 COBOL 백엔드/Oracle 은 그대로 두고, 이 백엔드는 **신규 PostgreSQL** 에 붙어 독립 구동합니다.
 
-## 현재 상태 (스캐폴딩)
+## 현재 상태 (기능 이식 완료)
 
 - ✅ 프로젝트 골격 (Spring Boot 3.3 / Java 21 / Maven)
-- ✅ **코덱 3종** — `codec/`: `JefCodec`(JEF EBCDIC), `PackedDecimalCodec`(COMP-3), `ZonedDecimalCodec`(존10진)
-- ✅ **바이트 동일성 테스트** — `CodecByteIdentityTest` (라이브 DB 실측 hex와 대조)
-- ✅ PostgreSQL 스키마(`db/schema.sql`, 전 컬럼 bytea) + 스타터 시드(`db/seed.sql`, 2계좌)
+- ✅ **코덱 3종** — `codec/`: `JefCodec`(JEF EBCDIC), `PackedDecimalCodec`(COMP-3), `ZonedDecimalCodec`(존10진) + 헬퍼 `Fields`(디코드)/`Enc`(인코드). 바이트 동일성 테스트 통과.
+- ✅ PostgreSQL 스키마(전 컬럼 bytea) + 전체 시드(8계좌·10지점·5은행·3공지) + 디코드 뷰 `V_KOUZA`/`V_TORIHIKI`
+- ✅ **온라인 9종** — `login` `signup` `zandaka` `holdings` `meisai` `furikomi` `loan` `repay` `notice` (계약·바이트 COBOL 동일, E2E 검증)
+- ✅ **야간배치** — `POST /api/batch/run` (posting + 帳票 6종; COBOL 10스텝 = SORT 2개는 ORDER BY로 흡수)
 - ✅ 헬스체크 `GET /api/health`, 예외 핸들러
-- ⬜ 업무 엔드포인트(login/furikomi/meisai …), repository, 배치 — 다음 단계
+- ⬜ 남은 것: 프로필 컬럼 확장·인증/보안 강화 등 운영화 (기능 자체는 COBOL 파리티 달성)
 
 ## 로컬 실행
 
