@@ -21,8 +21,8 @@ COBOL ASIS 백엔드의 Java 이식. **RAW 바이트 저장(bytea) 유지**, 코
 # 1) 코덱 테스트만 (DB 불필요) — 바이트 동일성 9개
 mvn -q test
 
-# 2) 전체 스택 (PostgreSQL + 앱)
-docker compose -f compose.java.yml up -d --build
+# 2) 전체 스택 (PostgreSQL + 앱) — 리포 루트에서 (COBOL과 동일한 방식)
+docker compose -f backend-java/compose.java.yml up -d --build   # 프로젝트명: minibank-java
 curl http://localhost:8081/api/health          # {"ok":true,"db":"up",...}
 
 # 3) 앱만 로컬 실행 (PG는 compose로 먼저, 기본 localhost:5433)

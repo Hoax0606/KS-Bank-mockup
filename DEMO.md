@@ -38,9 +38,9 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 **B-2) Java 백엔드** — 준비물 없이 바로 됨 (가장 간단)
 ```bash
-cd backend-java
-docker compose -f compose.java.yml up -d --build
-# → http://localhost:8081/     (끄기: docker compose -f compose.java.yml down)
+# 리포지토리 루트에서 (COBOL과 동일한 방식)
+docker compose -f backend-java/compose.java.yml up -d --build
+# → http://localhost:8081/     (끄기: docker compose -f backend-java/compose.java.yml down)
 ```
 
 > 어느 쪽이든 화면·기능은 동일합니다. **잘 모르면 옵션 A(라이브) 또는 B-2(Java)** 를 쓰세요.

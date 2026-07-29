@@ -49,16 +49,20 @@
 
 ## 4. 로컬에서 돌려보기
 
-**Java판 (가장 간단 · 준비물 없음)**
+**둘 다 리포지토리 루트에서 동일한 방식(`docker compose -f <경로>`)으로 실행합니다.**
 ```bash
-cd backend-java
-docker compose -f compose.java.yml up -d --build   # → http://localhost:8081/
-docker compose -f compose.java.yml down             # 종료
+# Java판 (가장 간단 · 준비물 없음) → http://localhost:8081/   (프로젝트명: minibank-java)
+docker compose -f backend-java/compose.java.yml up -d --build
+
+# COBOL판 (정본) → http://localhost:8080/   (프로젝트명: minibank-cobol)
+#   ※ 먼저 backend-cobol/docker/vendor/README.md 보고 vendor 3개 다운로드
+docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
+
+# 종료: 위 명령의 up -d --build 를 down 으로 바꾸면 됨 (-v 붙이면 DB 볼륨까지 삭제)
 ```
-**COBOL판 (정본)** — 먼저 `backend-cobol/docker/vendor/README.md` 보고 vendor 3개 다운로드
-```bash
-docker compose -f backend-cobol/docker/compose.asis.yml up -d --build   # → http://localhost:8080/
-```
+> 빌드 컨텍스트 차이(COBOL=리포 루트: 프론트까지 번들 / Java=자족형)로 compose 위치는 다르지만,
+> **실행은 위처럼 루트에서 `-f 경로`로 동일**합니다. Docker Desktop엔 `minibank-cobol` / `minibank-java`로 표시됩니다.
+
 로그인 계정은 `DEMO.md` §2 (기본: `001 / 1000123 / ks1234`).
 
 ### 접속 주소 한눈에 (테스트용)

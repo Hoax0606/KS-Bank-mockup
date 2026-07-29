@@ -5,6 +5,7 @@
 #     docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 #   VM 재부팅 시 자동 복구: restart: unless-stopped
 # ============================================================
+name: minibank-cobol
 services:
   oracle:
     image: gvenzl/oracle-free:23-slim
