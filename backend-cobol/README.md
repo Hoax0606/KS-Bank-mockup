@@ -33,12 +33,12 @@
 `FN_UNPACK(raw)`=COMP-3→숫자, `FN_EBC(raw)`=단바이트 EBCDIC→문자(`WE8EBCDIC500`).
 일본어 텍스트는 SQL만으로 디코드 불가라, `V_KOUZA`의 명의는 UTF-8 미러 컬럼을 사용.
 
-**⚠️ 최우선 미결 — DDL/시드 소스가 라이브 DB와 불일치**
-`sql/01_ddl.sql`·`02_seed.sql`은 **RAW 전환 이전(NUMBER/평문)** 상태입니다. 라이브 Oracle만 ALTER로
-RAW화됐고 생성 스크립트(gen/seedgen)는 남아있지 않습니다. 따라서 **새 Oracle을 이 DDL/시드로 초기화하면
-코드(RAW 기대)와 어긋나 동작하지 않습니다.** 현재 실동작 환경은 서버 라이브 DB뿐이며, 프레시 재구축을 하려면
-라이브 DB에서 RAW 스키마/데이터를 덤프해 `01_ddl.sql`(전 컬럼 RAW)·`02_seed.sql`(HEXTORAW 시드)을
-재생성해야 합니다.
+**DDL/시드 = 전 컬럼 RAW 정본 (정합 완료 2026-07-29)** ✅
+`sql/01_ddl.sql`·`02_seed.sql`은 라이브 서버 DB(전 컬럼 RAW)에서 `DBMS_METADATA`로 재생성한 정본입니다.
+9개 테이블 전 컬럼 RAW + 디코드 함수 5개(`FN_UNZONE/FN_UNPACK/FN_EBC` 등) + 조회 뷰 5개(`V_*`) +
+시퀀스 6개(채번값 보존), 데이터는 `HEXTORAW` 시드. 프레시 `gvenzl/oracle-free` 컨테이너에 init으로 물려
+기동 검증 완료(에러 0 / INVALID 오브젝트 0 / 디코드 뷰 정상). ※ RAW 생성 스크립트 자체는 남아있지 않으니,
+향후 스키마 변경 시엔 라이브 DB → DBMS_METADATA 재추출로 소스를 갱신하세요.
 
 **배치**(§5)는 실거래 연동 방식(옵션1): 온라인 CGI가 이미 실시간 반영하므로, 배치는 재INSERT 없이
 명세 생성 + 이자 가산만 담당(普通 종별만, `floor(잔액/365000)`). 파이프라인 4단계는 그대로.

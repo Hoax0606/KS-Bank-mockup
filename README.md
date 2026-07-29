@@ -67,19 +67,15 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 자세한 입수·버전 대응은 **`backend-cobol/docker/vendor/README.md`** 참조.
 
-### ⚠️⚠️ 중요 — 프레시 실행은 아직 그대로는 안 됩니다 (§7-4 참조)
-
-`sql/01_ddl.sql`·`02_seed.sql`은 **RAW 전환 이전의 옛 스키마(NUMBER/평문)** 입니다. 라이브 서버 Oracle은
-수작업 마이그레이션(ALTER)으로 RAW화됐지만 **DDL/시드 소스에는 반영되지 않았습니다.** 그래서 위 명령으로
-**새 Oracle을 초기화하면 스키마가 코드(RAW 기대)와 어긋나 런타임 에러**가 납니다.
-지금 실제로 동작하는 건 **이미 RAW로 마이그레이션된 서버의 라이브 DB**뿐입니다.
-→ 프레시 재구축을 하려면 RAW DDL/시드 재생성이 선행돼야 합니다(§7-4).
+> `sql/01_ddl.sql`·`02_seed.sql`은 라이브 서버 DB(전 컬럼 RAW)에서 재생성한 정본이라, 프레시 컨테이너
+> 초기화가 코드(RAW)와 정합됩니다. 프레시 `gvenzl/oracle-free` 컨테이너에 init으로 물려 기동 검증 완료
+> (에러 0 / INVALID 오브젝트 0 / 디코드 뷰 정상). 조회 시 원본 RAW는 사람이 못 읽으니 `V_*` 뷰를 사용하세요.
 
 ---
 
 ## 4. 배포된 데모 서버
 
-COBOL 백엔드가 리눅스 서버에 빌드·구동 중입니다 (Oracle 연결·거래기록 E2E 확인 완료). **현재 정상 동작하는 유일한 환경**입니다.
+COBOL 백엔드가 리눅스 서버에 빌드·구동 중입니다 (Oracle 연결·거래기록 E2E 확인 완료).
 
 - 접속: **사내 Tailscale 망**을 통해 접속합니다 (서버 주소·포트·접속 권한은 담당자에게 문의).
 - DB 조회 시 원본은 RAW라 사람이 못 읽으므로, DBeaver 등에서는 디코드 뷰 `V_KOUZA / V_TORIHIKI / V_LOAN / V_REPAY / V_NOTICE`를 보세요 (함수 `FN_UNZONE`=키, `FN_UNPACK`=금액, `FN_EBC`=단바이트 EBCDIC).
@@ -119,11 +115,10 @@ COBOL 백엔드가 리눅스 서버에 빌드·구동 중입니다 (Oracle 연�
 2. **금액·키 인코딩 완료** ✅ — 금액/이율/원장금액 = COMP-3 RAW, 키(계좌·거래·대출 ID 등) = 존10진 EBCDIC RAW.
    코덱은 카피북 `WPACK/PPACK`(금액·키), `WTXT/PTXT`(텍스트)로 온라인 CGI 11개 + 배치 전부 적용됨.
 3. **계좌번호 자릿수** — 프론트·DB 모두 7자리(`KOUZA_NO`)로 정합됨.
-4. **⚠️ DDL/시드 소스가 라이브 DB와 불일치 (최우선 미결)** — `sql/01_ddl.sql`·`02_seed.sql`은 RAW 전환 전
-   NUMBER/평문 스키마 그대로입니다. 라이브 Oracle만 ALTER로 RAW화됐고, 생성 스크립트(gen/seedgen)는
-   남아있지 않습니다. **프레시 `docker compose up`은 스키마 불일치로 동작하지 않습니다**(§3 경고).
-   → 라이브 DB에서 RAW 스키마/데이터를 덤프해 `01_ddl.sql`(전 컬럼 RAW)·`02_seed.sql`(HEXTORAW 시드)을
-   재생성하는 작업이 필요합니다. 그 전까지 실동작 환경은 서버 라이브 DB뿐입니다.
+4. **DDL/시드 소스 정합 완료** ✅ (2026-07-29) — `sql/01_ddl.sql`·`02_seed.sql`을 라이브 DB에서
+   DBMS_METADATA로 재생성(전 컬럼 RAW + HEXTORAW 시드 + 디코드 함수/뷰). 프레시 컨테이너 기동 검증 완료.
+   ※ 라이브 DB의 마이그레이션 이력만 있고 RAW 생성 스크립트는 남아있지 않으므로, 향후 스키마 변경 시엔
+   라이브 DB → DBMS_METADATA 재추출 방식으로 소스를 갱신하세요.
 5. **Java 전환 예정** — `backend-java/`는 자리만 잡힌 상태. 방침: `JEFCONV.c`/CGI 배관을 버리고
    jef4j 직접 사용 + 웹프레임워크 + JDBC. COMP-3/존10진은 Java 직접 구현, JEF는 jef4j 재사용.
    (실사용 백엔드 = `.cbl` 18개 + `.cpy` 14개)
