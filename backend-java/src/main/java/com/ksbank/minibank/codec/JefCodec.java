@@ -2,6 +2,7 @@ package com.ksbank.minibank.codec;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import net.arnx.jef4j.Jef4jCharsetProvider;
 
 /**
  * 富士通 JEF EBCDIC 텍스트 코덱. COBOL WTXT/PTXT(JEFCONV 브리지) 대체.
@@ -12,8 +13,22 @@ import java.util.Arrays;
 public final class JefCodec {
     private JefCodec() {}
 
-    public static final Charset JEF = Charset.forName("x-Fujitsu-JEF-EBCDIC");
+    private static final String JEF_NAME = "x-Fujitsu-JEF-EBCDIC";
+    public static final Charset JEF = resolveJef();
     private static final byte EBCDIC_SPACE = 0x40;
+
+    /**
+     * ★Spring Boot fat jar 대응★ JVM charset SPI(ServiceLoader)는 BOOT-INF/lib 안의
+     * provider 를 못 보므로 {@code Charset.forName} 이 실패한다. jef4j provider 를 직접
+     * 인스턴스화해 charset 을 얻어 우회한다(일반 classpath 에선 forName 폴백).
+     */
+    private static Charset resolveJef() {
+        try {
+            Charset c = new Jef4jCharsetProvider().charsetForName(JEF_NAME);
+            if (c != null) return c;
+        } catch (RuntimeException ignore) { /* fall through */ }
+        return Charset.forName(JEF_NAME);
+    }
 
     /** UTF-8 문자열 -&gt; JEF 바이트, 고정 길이(0x40 패딩 / len 바이트에서 절단). */
     public static byte[] encode(String s, int fixedLen) {

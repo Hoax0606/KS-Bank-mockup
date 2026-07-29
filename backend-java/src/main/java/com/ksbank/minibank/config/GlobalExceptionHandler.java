@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final org.slf4j.Logger log =
+        org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     /** 업무 규칙 위반 등 명시적 오류(예: 잔액부족, 계좌없음). */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Map<String, Object>> business(BusinessException e) {
@@ -21,6 +24,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> unexpected(Exception e) {
+        log.error("unexpected error", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(Map.of("ok", false, "error", "internal_error"));
     }
