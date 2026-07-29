@@ -1,6 +1,7 @@
 package com.ksbank.minibank.repository;
 
 import java.util.Optional;
+import com.ksbank.minibank.domain.AccountDetail;
 import com.ksbank.minibank.domain.AccountRow;
 import com.ksbank.minibank.domain.BalanceRow;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -68,5 +69,24 @@ public class AccountRepository {
             ps.setBytes(1, zandakaRaw);
             ps.setBytes(2, kouzaNo);
         });
+    }
+
+    private static final String DETAIL_SQL = """
+        SELECT k.meigi_kanji, k.meigi_kana, k.shubetsu, k.joutai, k.zandaka,
+               e.acct_type, e.branch_code, e.is_primary, e.kanji_utf8, e.kana_utf8
+          FROM kouza k
+          JOIN kouza_ext e ON e.kouza_no = k.kouza_no
+         WHERE k.kouza_no = ?
+        """;
+
+    /** 계좌 상세(KOUZA+KOUZA_EXT). 없으면 empty. */
+    public Optional<AccountDetail> findDetail(byte[] kouzaNo) {
+        return jdbc.query(DETAIL_SQL,
+            ps -> ps.setBytes(1, kouzaNo),
+            rs -> rs.next()
+                ? Optional.of(new AccountDetail(
+                    rs.getBytes(1), rs.getBytes(2), rs.getBytes(3), rs.getBytes(4), rs.getBytes(5),
+                    rs.getBytes(6), rs.getBytes(7), rs.getBytes(8), rs.getString(9), rs.getString(10)))
+                : Optional.empty());
     }
 }
