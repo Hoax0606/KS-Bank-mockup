@@ -1,0 +1,115 @@
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#f5f7fa;font-family:'Noto Sans JP','Noto Sans KR',system-ui,sans-serif;color:#1a1a1a;-webkit-font-smoothing:antialiased}
+#app{min-height:100vh;display:flex;flex-direction:column}
+button{font-family:inherit}
+input,select,textarea{font-family:inherit}
+a{color:inherit}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+::-webkit-scrollbar{height:9px;width:9px}
+::-webkit-scrollbar-thumb{background:#c4ccd8;border-radius:6px}
+
+/* ---------- layout helpers ---------- */
+.flex-center{flex:1;display:flex;align-items:center;justify-content:center;padding:44px 20px}
+.col{display:flex;flex-direction:column}
+.row{display:flex;align-items:center}
+.grow{flex:1}
+
+/* ---------- shared building blocks ---------- */
+.card-box{background:#fff;border:1px solid #e9edf3;border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 2px 10px rgba(10,36,114,.05)}
+.back-link{align-self:flex-start;background:none;border:none;color:#a06e00;font-size:13px;font-weight:700;cursor:pointer;padding:2px 0}
+.err-box{padding:12px 15px;border-radius:10px;background:#fdecec;border:1px solid #f2b8b8;color:#c0392b;font-size:13px;font-weight:600}
+.f-label{font-size:12.5px;color:#4a5a6a;font-weight:600}
+.inp{padding:10px 13px;border:1px solid #d3dbe8;border-radius:9px;font-size:14px;font-family:'IBM Plex Mono',monospace;width:180px}
+.inp-full{padding:10px 13px;border:1px solid #d3dbe8;border-radius:9px;font-size:14px;width:100%}
+.inp-full-mono{padding:10px 13px;border:1px solid #d3dbe8;border-radius:9px;font-size:14px;width:100%;font-family:'IBM Plex Mono',monospace}
+.note-txt{font-size:11.5px;color:#8a97b0;line-height:1.7;border-top:1px solid #eef2f6;padding-top:13px}
+.btn-primary,.btn-exec{background:#ffcc00;color:#1a1a1a;border:none;padding:11px 26px;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer}
+.btn-primary:disabled,.btn-exec:disabled{background:#e2e7f0;color:#a7b1c4;cursor:not-allowed}
+.btn-back{background:#f0f3f8;color:#5b6b85;border:1px solid #e2e7f0;padding:11px 22px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer}
+.tbl-box{border:1px solid #eef1f6;border-radius:12px;overflow:hidden}
+.c-label{padding:11px 14px;background:#f6f8fb;color:#5f7285;border-bottom:1px solid #eef2f6;font-size:12.5px}
+.c-val{padding:11px 14px;border-bottom:1px solid #eef2f6;color:#20303f}
+
+/* label / value aligned rows (amtLabel / amtCell etc.) */
+.rowgrid{display:grid;grid-template-columns:1fr auto;font-size:13px}
+.amt-label{padding:10px 14px;text-align:left;color:#5f7285;font-size:12.5px;border-bottom:1px solid #eef2f6}
+.amt-cell{padding:10px 14px;text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#1a1a1a;border-bottom:1px solid #eef2f6}
+.amt-cell-bold{padding:10px 14px;text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#1a1a1a;font-weight:700;border-bottom:1px solid #eef2f6}
+.amt-label-strong{padding:11px 14px;text-align:left;color:#1a1a1a;font-size:13px;font-weight:800;border-top:2px solid #e7ebf1}
+.amt-cell-strong{padding:11px 14px;text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#1a1a1a;font-weight:900;font-size:16px;border-top:2px solid #e7ebf1}
+
+.done-box{background:#fff;border:1px solid #d7e6ff;border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:18px;align-items:center;text-align:center;box-shadow:0 2px 10px rgba(10,36,114,.05)}
+.done-icon{width:54px;height:54px;border-radius:50%;background:#fff3c4;color:#c98a00;display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:700}
+
+/* step indicator */
+.step-row{display:flex;background:#fff;border:1px solid #e9edf3;border-radius:12px;overflow:hidden}
+.step-item{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 8px;font-size:12.5px;font-weight:600;color:#a7b1c4;background:#fff;border-right:1px solid #eef1f6}
+.step-item:last-child{border-right:none}
+.step-item.is-done{color:#a06e00}
+.step-item.is-active{font-weight:800;color:#1a1a1a;background:#fff8db}
+.step-num{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none;background:#dbe2ee;color:#8a97b0}
+.step-item.is-active .step-num,.step-item.is-done .step-num{background:#ffcc00;color:#1a1a1a}
+
+/* icon tiles */
+.tile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tile{background:#fff;border:1px solid #eef0f4;border-radius:18px;padding:22px 10px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(16,36,94,.05);transition:transform .16s,box-shadow .16s}
+.tile:hover{transform:translateY(-4px);box-shadow:0 12px 26px rgba(10,36,114,.13)}
+.tile-label{font-size:12.5px;font-weight:700;color:#1a1a1a;text-align:center;line-height:1.3}
+
+/* header */
+.app-header{background:#fff;border-bottom:1px solid #e9edf3}
+.app-header-inner{max-width:960px;margin:0 auto;padding:15px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.logo-mark{width:40px;height:40px;border-radius:11px;background:#ffcc00;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#1a1a1a;letter-spacing:-.5px}
+.gear-btn{width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;background:#fff;color:#1a1a1a;border:1px solid #cfd8ea}
+.gear-btn.is-open{background:#ffcc00;border-color:#ffcc00}
+.popover-backdrop{position:fixed;inset:0;z-index:70}
+.popover{position:absolute;top:44px;right:0;z-index:80;background:#fff;color:#1a1a1a;border:1px solid #e2e7f0;border-radius:12px;padding:16px;width:290px;box-shadow:0 16px 40px rgba(0,0,0,.18)}
+.popover-item{display:flex;align-items:center;justify-content:space-between;width:100%;background:#fff8db;border:1px solid #f0d98a;border-radius:9px;padding:11px 13px;cursor:pointer;margin-bottom:8px;font-size:13px;font-weight:700;color:#1a1a1a}
+
+main.app-main{flex:1;max-width:960px;width:100%;margin:0 auto;padding:26px 24px 44px;display:flex;flex-direction:column;gap:22px}
+
+/* home account carousel */
+.acct-card{flex:1;background:#fff;border:1px solid #e9edf3;border-radius:20px;padding:24px 26px;box-shadow:0 2px 10px rgba(10,36,114,.05)}
+.car-arrow{flex:none;width:40px;border:1px solid #e9edf3;background:#fff;border-radius:14px;cursor:pointer;color:#a06e00;font-size:20px;font-weight:900;box-shadow:0 2px 10px rgba(10,36,114,.05)}
+.star{cursor:pointer;font-size:19px;color:#d3dbe8;flex:none}
+.star.is-rep{color:#ffcc00}
+.pill{background:#fff3c4;color:#a06e00;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px}
+.pill-outline{font-size:10px;font-weight:800;color:#a06e00;background:#fff3c4;border:1px solid #f0d98a;padding:2px 9px;border-radius:20px}
+
+/* notices */
+.notice-item{padding:13px 20px;border-bottom:1px solid #f2f4f8;display:flex;align-items:center;gap:10px;cursor:pointer}
+.notice-item:hover{background:#f7f9fc}
+.notice-tag{font-size:10px;font-weight:700;padding:1px 8px;border-radius:5px;background:#fff3c4;color:#8a6d00;border:1px solid #ffe08a}
+.file-chip{font-size:10.5px;background:#f5f7fa;color:#5b6b85;border:1px solid #e2e7f0;border-radius:5px;padding:2px 8px}
+
+/* transfer bank/branch */
+.bank-tile{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 10px;background:#fff;border:1px solid #eef0f4;border-radius:12px;cursor:pointer;transition:all .15s}
+.bank-tile:hover{border-color:#ffcc00;background:#fffbe9}
+.bank-mark{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none;letter-spacing:-.3px}
+.branch-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;background:#fff;border:none;border-bottom:1px solid #f2f4f8;cursor:pointer;text-align:left}
+.branch-row:hover{background:#fffbe9}
+
+/* tabs (loan method etc.) */
+.tab-btn{padding:9px 16px;border-radius:10px;font-size:12.5px;font-weight:800;cursor:pointer;border:1px solid #f0d98a;background:#fff;color:#8a6d00}
+.tab-btn.is-on{background:#ffcc00;color:#1a1a1a;border-color:#ffcc00}
+
+/* meisai table */
+.meisai-head{display:grid;grid-template-columns:104px 1fr 78px 96px 96px 112px;background:#fbf3d6;font-size:11px;color:#7a6420;font-weight:800;border-bottom:2px solid #f0d98a}
+.meisai-head>div{padding:11px 14px}
+.meisai-row{display:grid;grid-template-columns:104px 1fr 78px 96px 96px 112px;font-size:12.5px;border-bottom:1px solid #f2f4f8;align-items:center}
+.meisai-row>div{padding:11px 14px}
+.kind-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap}
+
+/* misc */
+.gradient-card{background:linear-gradient(120deg,#ffde00,#ffcc00);border-radius:16px;padding:20px 24px;color:#1a1a1a}
+.plain-card{background:#fff;border:1px solid #e9edf3;border-radius:16px;padding:18px 22px;box-shadow:0 2px 10px rgba(10,36,114,.05)}
+.plain-card.no-shadow{box-shadow:none}
+.loan-row{background:#fff;border:1px solid #e9edf3;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px rgba(10,36,114,.05);cursor:pointer}
+.loan-row:hover{box-shadow:0 10px 24px rgba(10,36,114,.11)}
+.chev{color:#c3ccdb;font-size:18px}
+
+.checkbox-box{width:18px;height:18px;border-radius:5px;border:2px solid #c3ccdb;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;font-size:12px;font-weight:900;color:transparent}
+.checkbox-box.is-on{border-color:#ffcc00;background:#ffcc00;color:#1a1a1a}
+
+.hint-box{font-size:11px;color:#a06e00;background:#fff8db;border:1px solid #f0d98a;border-radius:8px;padding:8px 11px;font-family:'IBM Plex Mono',monospace}
