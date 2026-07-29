@@ -1,0 +1,39 @@
+# ============================================================
+#  Java 백엔드 스택 (신규 PostgreSQL + Spring Boot 앱)
+#  ※ 기존 COBOL 백엔드/Oracle 과 독립. 포트도 겹치지 않게 분리.
+#  실행(backend-java/ 에서):
+#     docker compose -f compose.java.yml up -d --build
+#     -> http://localhost:8081/api/health
+# ============================================================
+services:
+  postgres:
+    image: postgres:16
+    container_name: mbj-postgres
+    environment:
+      POSTGRES_DB: minibank
+      POSTGRES_USER: minibank
+      POSTGRES_PASSWORD: minibank
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./src/main/resources/db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U minibank"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    container_name: mbj-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/minibank
+      DB_USER: minibank
+      DB_PASS: minibank
+    ports:
+      - "8081:8080"
+    restart: unless-stopped

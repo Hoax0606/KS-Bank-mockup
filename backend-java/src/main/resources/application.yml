@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: minibank-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/minibank}
+    username: ${DB_USER:minibank}
+    password: ${DB_PASS:minibank}
+    driver-class-name: org.postgresql.Driver
+  # 응답 JSON은 UTF-8 (프론트 계약)
+  jackson:
+    default-property-inclusion: non_null
+
+# 참고: 이 백엔드는 신규 PostgreSQL 에 붙는다. 기존 COBOL 백엔드의 Oracle 은 건드리지 않는다.

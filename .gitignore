@@ -17,6 +17,11 @@ backend-cobol/build/gixsql.log
 *.lst
 *.class
 
+# Java / Maven (backend-java)
+target/
+*.jar
+!backend-cobol/jef/jef4j.jar
+
 # OS / 에디터 잡파일
 .DS_Store
 Thumbs.db
