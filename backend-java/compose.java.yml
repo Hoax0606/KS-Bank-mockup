@@ -14,7 +14,8 @@ services:
       POSTGRES_USER: minibank
       POSTGRES_PASSWORD: minibank
     ports:
-      - "5432:5432"
+      # 호스트 네이티브 PostgreSQL(5432)과 충돌 회피 → 5433 로 공개
+      - "5433:5432"
     volumes:
       - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./src/main/resources/db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro

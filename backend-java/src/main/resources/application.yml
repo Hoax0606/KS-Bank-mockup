@@ -5,7 +5,8 @@ spring:
   application:
     name: minibank-backend
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/minibank}
+    # 로컬 기본 5433 (호스트 네이티브 PG 5432와 충돌 회피). compose 내부는 postgres:5432.
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/minibank}
     username: ${DB_USER:minibank}
     password: ${DB_PASS:minibank}
     driver-class-name: org.postgresql.Driver

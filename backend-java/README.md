@@ -17,16 +17,19 @@ COBOL ASIS 백엔드의 Java 이식. **RAW 바이트 저장(bytea) 유지**, 코
 ## 로컬 실행
 
 ```bash
-# 1) 코덱 테스트만 (DB 불필요)
+# 1) 코덱 테스트만 (DB 불필요) — 바이트 동일성 9개
 mvn -q test
 
 # 2) 전체 스택 (PostgreSQL + 앱)
 docker compose -f compose.java.yml up -d --build
 curl http://localhost:8081/api/health          # {"ok":true,"db":"up",...}
 
-# 3) 앱만 로컬 실행 (PG는 별도 기동, 기본 localhost:5432)
+# 3) 앱만 로컬 실행 (PG는 compose로 먼저, 기본 localhost:5433)
 mvn spring-boot:run
 ```
+
+> ⚠️ **포트**: 호스트에 네이티브 PostgreSQL(5432)이 있으면 충돌하므로, compose PG는 **5433**으로 공개하고
+> 로컬 앱 기본 접속도 5433입니다. COBOL 스택(8080/1521)과도 안 겹치게 앱은 8081(compose)/기본 8080(로컬)입니다.
 
 ## 레이어 (예정)
 
