@@ -18,6 +18,7 @@
        01  WK-FOUND    PIC X(1) VALUE 'N'.
        01  WK-AITE-CNT PIC 9(1) VALUE 0.
        COPY WPACK.
+       COPY WTXT.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
        01  HV-KOUZA    PIC 9(7).
        01  HV-AITE     PIC 9(7).
@@ -33,7 +34,10 @@
        01  HV-AZAN-HX  PIC X(12).
        01  HV-AMT-HX   PIC X(12).
        01  HV-FEE-HX   PIC X(6).
-       01  HV-JOUTAI   PIC X(01).
+       01  HV-JOU-HX   PIC X(4).
+       01  HV-DT-HX    PIC X(30).
+       01  HV-KBN3-HX  PIC X(2) VALUE 'F3'.
+       01  HV-KBN1-HX  PIC X(2) VALUE 'F1'.
        01  HV-TID      PIC 9(12).
        01  HV-TID2     PIC 9(12).
        01  HV-DT       PIC X(14).
@@ -74,8 +78,8 @@
            PERFORM DB-CONNECT
            MOVE 'N' TO WK-FOUND
            EXEC SQL
-               SELECT RAWTOHEX(ZANDAKA), JOUTAI
-                 INTO :HV-ZAN-HX, :HV-JOUTAI
+               SELECT RAWTOHEX(ZANDAKA), RAWTOHEX(JOUTAI)
+                 INTO :HV-ZAN-HX, :HV-JOU-HX
                  FROM KOUZA WHERE KOUZA_NO = HEXTORAW(:HV-KZ-HEX)
            END-EXEC
            IF SQLCODE = 0 MOVE 'Y' TO WK-FOUND END-IF
@@ -86,7 +90,7 @@
                PERFORM DB-DISCONNECT
                MOVE "kouza_not_found" TO WK-ERRMSG PERFORM ERR-404
            END-IF
-           IF HV-JOUTAI = '9'
+           IF HV-JOU-HX(1:2) = 'F9'
                PERFORM DB-DISCONNECT
                MOVE "account_frozen" TO WK-ERRMSG PERFORM ERR-409
            END-IF
@@ -106,6 +110,10 @@
            END-EXEC
            MOVE FUNCTION CURRENT-DATE TO WK-NOW
            MOVE WK-NOW(1:14) TO HV-DT
+           MOVE HV-DT TO TX-UTF8
+           MOVE 14 TO TX-ULEN
+           PERFORM ENC-TXT
+           MOVE TX-HEX(1:TX-HLEN) TO HV-DT-HX
       *>   ===== 原子的トランザクション開始 =====
            SUBTRACT HV-TOTAL FROM HV-ZAN
            MOVE HV-ZAN TO PK-P11
@@ -132,7 +140,7 @@
                   KINGAKU, AITE_KOUZA, TESURYO, TEKIYOU)
                VALUES
                  (HEXTORAW(:HV-TID-HEX), HEXTORAW(:HV-KZ-HEX),
-                  :HV-DT, '3',
+                  HEXTORAW(RTRIM(:HV-DT-HX)), HEXTORAW(:HV-KBN3-HX),
                   HEXTORAW(:HV-AMT-HX), HEXTORAW(:HV-AZ-HEX),
                   HEXTORAW(:HV-FEE-HX), NULL)
            END-EXEC
@@ -165,7 +173,7 @@
                       KINGAKU, AITE_KOUZA, TESURYO, TEKIYOU)
                    VALUES
                      (HEXTORAW(:HV-TID2-HEX), HEXTORAW(:HV-AZ-HEX),
-                      :HV-DT, '1',
+                      HEXTORAW(RTRIM(:HV-DT-HX)), HEXTORAW(:HV-KBN1-HX),
                       HEXTORAW(:HV-AMT-HX), NULL, NULL, NULL)
                END-EXEC
                IF SQLCODE NOT = 0 PERFORM TXN-ABORT END-IF
@@ -215,6 +223,7 @@
            SUBTRACT 1 FROM RESP-PTR GIVING RESP-LEN.
        COPY PFMTNUM.
        COPY PPACK.
+       COPY PTXT.
        COPY PDBCON.
        COPY PERRJSON.
        END PROGRAM FURIKOMI.

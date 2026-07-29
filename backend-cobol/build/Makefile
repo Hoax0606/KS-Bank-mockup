@@ -30,15 +30,15 @@ GIXFLAGS := -e -S -z c -I $(COPY) -I $(GIXHOME)/share/gixsql/copy
 COBFLAGS := -I $(COPY) -I $(GIXHOME)/share/gixsql/copy -L $(GIXHOME)/lib -lgixsql
 
 # 共通サブモジュール(.so)。CGI/バッチから動的 CALL される。
-MODS := TEAMENC CGIINIT CGIPARM CGIRESP EBCDIG RAWUTF8
+MODS := CGIINIT CGIPARM CGIRESP EBCDIG RAWUTF8
 # SQL を含む CGI メイン
-CGI_SQL := ZANDAKA NYUKIN SHUKKIN FURIKOMI MEISAI \
+CGI_SQL := ZANDAKA FURIKOMI MEISAI \
            LOGIN SIGNUP LOAN REPAY NOTICE HOLDINGS
 # バッチ(SQL あり)
-BATCH := YAKANBAT
+BATCH := YAKANBAT MKDAT
 # ツール/バッチ・ステップ(SQL 無し実行体)。SORTDAT/SORTRPT は SORT を
 # 含むため独立プロセスで実行(Oracle 使用プロセス内 SORT のクラッシュ回避)。
-TOOLS := MKDAT SORTDAT SORTRPT
+TOOLS := SORTDAT SORTRPT
 
 .PHONY: all dirs mods cgi batch tools clean
 all: dirs mods cgi batch tools

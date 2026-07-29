@@ -18,6 +18,7 @@
        01  JC-INLEN    PIC 9(4).
        01  JC-OUTLEN   PIC 9(4).
        COPY WPACK.
+       COPY WTXT.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
        01  HV-KANJI-U  PIC X(60).
        01  HV-KANA-U   PIC X(60).
@@ -37,6 +38,13 @@
        01  HV-JOB      PIC X(40).
        01  HV-KANJI-HEX PIC X(40).
        01  HV-KANA-HEX  PIC X(40).
+       01  HV-SHU-HX   PIC X(4).
+       01  HV-KAI-HX   PIC X(20).
+       01  HV-BR-HX    PIC X(8).
+       01  HV-TYPE-HX  PIC X(24).
+       01  HV-PW-HX    PIC X(128).
+       01  HV-JOU-HX   PIC X(2) VALUE 'F0'.
+       01  HV-PRIM-HX  PIC X(2) VALUE 'D5'.
        EXEC SQL END DECLARE SECTION END-EXEC.
        PROCEDURE DIVISION.
        MAIN.
@@ -108,6 +116,14 @@
            MOVE ALL '40' TO HV-KANA-HEX
            CALL "JEFCONV" USING JC-MODE HV-KANA-U JC-INLEN
                                 HV-KANA-HEX JC-OUTLEN
+           MOVE HV-SHU TO TX-UTF8
+           MOVE 1 TO TX-ULEN
+           PERFORM ENC-TXT
+           MOVE TX-HEX(1:TX-HLEN) TO HV-SHU-HX
+           MOVE HV-KAI TO TX-UTF8
+           MOVE 8 TO TX-ULEN
+           PERFORM ENC-TXT
+           MOVE TX-HEX(1:TX-HLEN) TO HV-KAI-HX
            EXEC SQL
                INSERT INTO KOUZA
                  (KOUZA_NO, MEIGI_KANJI, MEIGI_KANA, SHUBETSU,
@@ -116,7 +132,10 @@
                  (HEXTORAW(:HV-NEWNO-HEX),
                   HEXTORAW(:HV-KANJI-HEX),
                   HEXTORAW(:HV-KANA-HEX),
-                  :HV-SHU, HEXTORAW('00000000000C'), :HV-KAI, '0')
+                  HEXTORAW(RTRIM(:HV-SHU-HX)),
+                  HEXTORAW('00000000000C'),
+                  HEXTORAW(RTRIM(:HV-KAI-HX)),
+                  HEXTORAW(:HV-JOU-HX))
            END-EXEC
            IF SQLCODE NOT = 0
                EXEC SQL ROLLBACK END-EXEC
@@ -125,12 +144,28 @@
            END-IF
       *>   必須列のみ INSERT(プロフィール列は NULL 可)。長い列並びは
       *>   gixpp がカンマを落とす不具合を誘発するため最小限にする。
+           MOVE HV-BR TO TX-UTF8
+           MOVE 3 TO TX-ULEN
+           PERFORM ENC-TXT
+           MOVE TX-HEX(1:TX-HLEN) TO HV-BR-HX
+           MOVE HV-TYPE TO TX-UTF8
+           MOVE FUNCTION STORED-CHAR-LENGTH(HV-TYPE) TO TX-ULEN
+           PERFORM ENC-TXT
+           MOVE TX-HEX(1:TX-HLEN) TO HV-TYPE-HX
+           MOVE HV-PW TO TX-UTF8
+           MOVE FUNCTION STORED-CHAR-LENGTH(HV-PW) TO TX-ULEN
+           PERFORM ENC-TXT
+           MOVE TX-HEX(1:TX-HLEN) TO HV-PW-HX
            EXEC SQL
                INSERT INTO KOUZA_EXT
                  (KOUZA_NO, BRANCH_CODE, ACCT_TYPE, PASSWORD,
-                  KANJI_UTF8, KANA_UTF8)
+                  IS_PRIMARY, KANJI_UTF8, KANA_UTF8)
                VALUES
-                 (HEXTORAW(:HV-NEWNO-HEX), :HV-BR, :HV-TYPE, :HV-PW,
+                 (HEXTORAW(:HV-NEWNO-HEX),
+                  HEXTORAW(RTRIM(:HV-BR-HX)),
+                  HEXTORAW(RTRIM(:HV-TYPE-HX)),
+                  HEXTORAW(RTRIM(:HV-PW-HX)),
+                  HEXTORAW(:HV-PRIM-HX),
                   :HV-KANJI-U, :HV-KANA-U)
            END-EXEC
            IF SQLCODE NOT = 0
@@ -160,6 +195,7 @@
            SUBTRACT 1 FROM RESP-PTR GIVING RESP-LEN.
        COPY PFMTNUM.
        COPY PPACK.
+       COPY PTXT.
        COPY PDBCON.
        COPY PERRJSON.
        END PROGRAM SIGNUP.

@@ -15,6 +15,7 @@ backend-cobol/build/gixsql.log
 *.int
 *.gnt
 *.lst
+*.class
 
 # OS / 에디터 잡파일
 .DS_Store

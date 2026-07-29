@@ -1,9 +1,6 @@
       *>****************************************************************
-      *> HOLDINGS  -  保有口座 CGI (拡張)
-      *>   GET: kouza -> その口座の保有情報を配列で返す。
-      *>   ※ ASIS 契約(当方設計)では 1ログイン=1口座 を基本とし、
-      *>     同一名義の複数口座グルーピングは未定(§8 相当)。ここでは
-      *>     指定口座を 1要素配列で返す最小実装。拡張時は顧客IDで束ねる。
+      *> HOLDINGS  -  保有口座 CGI (全RAW版)
+      *>   GET: kouza -> 指定口座を1要素配列で返す。全項目 JEF RAW→UTF8 復号。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. HOLDINGS.
@@ -14,18 +11,18 @@
        COPY WDB.
        01  WK-CNT      PIC 9(9) VALUE 0.
        COPY WPACK.
+       COPY WTXT.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
        01  HV-KOUZA    PIC 9(7).
        01  HV-KZ-HEX   PIC X(14).
        01  HV-KANJI    PIC X(20).
        01  HV-KANJI-M  PIC X(60).
-       01  HV-SHU      PIC X(01).
-       01  HV-TYPE     PIC X(6).
-       01  HV-ZAN      PIC S9(11) COMP-3.
+       01  HV-SHU-HX   PIC X(4).
+       01  HV-TYPE-HX  PIC X(24).
        01  HV-ZAN-HX   PIC X(12).
-       01  HV-JOUTAI   PIC X(01).
-       01  HV-BR       PIC X(3).
-       01  HV-PRIM     PIC X(1).
+       01  HV-JOU-HX   PIC X(4).
+       01  HV-BR-HX    PIC X(8).
+       01  HV-PRIM-HX  PIC X(4).
        01  HV-CNT      PIC 9(9).
        EXEC SQL END DECLARE SECTION END-EXEC.
        PROCEDURE DIVISION.
@@ -49,11 +46,12 @@
                MOVE "kouza_not_found" TO WK-ERRMSG PERFORM ERR-404
            END-IF
            EXEC SQL
-               SELECT K.MEIGI_KANJI, K.SHUBETSU, RAWTOHEX(K.ZANDAKA),
-                      K.JOUTAI, X.KANJI_UTF8, X.ACCT_TYPE,
-                      X.BRANCH_CODE, X.IS_PRIMARY
-                 INTO :HV-KANJI, :HV-SHU, :HV-ZAN-HX, :HV-JOUTAI,
-                      :HV-KANJI-M, :HV-TYPE, :HV-BR, :HV-PRIM
+               SELECT K.MEIGI_KANJI, RAWTOHEX(K.SHUBETSU),
+                      RAWTOHEX(K.ZANDAKA), RAWTOHEX(K.JOUTAI),
+                      X.KANJI_UTF8, RAWTOHEX(X.ACCT_TYPE),
+                      RAWTOHEX(X.BRANCH_CODE), RAWTOHEX(X.IS_PRIMARY)
+                 INTO :HV-KANJI, :HV-SHU-HX, :HV-ZAN-HX, :HV-JOU-HX,
+                      :HV-KANJI-M, :HV-TYPE-HX, :HV-BR-HX, :HV-PRIM-HX
                  FROM KOUZA K, KOUZA_EXT X
                 WHERE X.KOUZA_NO = K.KOUZA_NO
                   AND K.KOUZA_NO = HEXTORAW(:HV-KZ-HEX)
@@ -72,17 +70,37 @@
            STRING '{"ok":true,"holdings":[{"kouza":"' DELIMITED SIZE
                   WK-KOUZA-Z DELIMITED SIZE
                   '","branch":"' DELIMITED SIZE
-                  FUNCTION TRIM(HV-BR) DELIMITED SIZE
+                  INTO RESP-BUF WITH POINTER RESP-PTR
+           MOVE HV-BR-HX TO TX-HEX
+           MOVE FUNCTION STORED-CHAR-LENGTH(HV-BR-HX) TO TX-HLEN
+           PERFORM DEC-TXT
+           STRING TX-UTF8(1:TX-ULEN) DELIMITED SIZE
                   '","meigiKanji":"' DELIMITED SIZE
                   UT-OUT(1:UT-OUTLEN) DELIMITED SIZE
                   '","shubetsu":"' DELIMITED SIZE
-                  HV-SHU DELIMITED SIZE
+                  INTO RESP-BUF WITH POINTER RESP-PTR
+           MOVE HV-SHU-HX TO TX-HEX
+           MOVE FUNCTION STORED-CHAR-LENGTH(HV-SHU-HX) TO TX-HLEN
+           PERFORM DEC-TXT
+           STRING TX-UTF8(1:TX-ULEN) DELIMITED SIZE
                   '","type":"' DELIMITED SIZE
-                  FUNCTION TRIM(HV-TYPE) DELIMITED SIZE
+                  INTO RESP-BUF WITH POINTER RESP-PTR
+           MOVE HV-TYPE-HX TO TX-HEX
+           MOVE FUNCTION STORED-CHAR-LENGTH(HV-TYPE-HX) TO TX-HLEN
+           PERFORM DEC-TXT
+           STRING TX-UTF8(1:TX-ULEN) DELIMITED SIZE
                   '","joutai":"' DELIMITED SIZE
-                  HV-JOUTAI DELIMITED SIZE
+                  INTO RESP-BUF WITH POINTER RESP-PTR
+           MOVE HV-JOU-HX TO TX-HEX
+           MOVE FUNCTION STORED-CHAR-LENGTH(HV-JOU-HX) TO TX-HLEN
+           PERFORM DEC-TXT
+           STRING TX-UTF8(1:TX-ULEN) DELIMITED SIZE
                   '","isPrimary":"' DELIMITED SIZE
-                  HV-PRIM DELIMITED SIZE
+                  INTO RESP-BUF WITH POINTER RESP-PTR
+           MOVE HV-PRIM-HX TO TX-HEX
+           MOVE FUNCTION STORED-CHAR-LENGTH(HV-PRIM-HX) TO TX-HLEN
+           PERFORM DEC-TXT
+           STRING TX-UTF8(1:TX-ULEN) DELIMITED SIZE
                   '","zandaka":' DELIMITED SIZE
                   INTO RESP-BUF WITH POINTER RESP-PTR
            MOVE HV-ZAN-HX TO PK-HEX
@@ -95,6 +113,7 @@
            SUBTRACT 1 FROM RESP-PTR GIVING RESP-LEN.
        COPY PFMTNUM.
        COPY PPACK.
+       COPY PTXT.
        COPY PDBCON.
        COPY PERRJSON.
        END PROGRAM HOLDINGS.

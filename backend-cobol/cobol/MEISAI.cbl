@@ -36,11 +36,14 @@
                10  RW-AFTER  PIC S9(11) COMP-3.
                10  RW-AITE   PIC S9(7)  COMP-3.
        COPY WPACK.
+       COPY WTXT.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
        01  HV-KOUZA    PIC 9(7).
        01  HV-KZ-HEX   PIC X(14).
        01  HV-DT       PIC X(14).
+       01  HV-DT-HX    PIC X(30).
        01  HV-KBN      PIC X(01).
+       01  HV-KBN-HX   PIC X(4).
        01  HV-KIN      PIC S9(11) COMP-3.
        01  HV-KIN-HX   PIC X(12).
        01  HV-TES      PIC S9(05) COMP-3.
@@ -54,7 +57,8 @@
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-MEISAI CURSOR FOR
-             SELECT TORIHIKI_DT, TORIHIKI_KBN, RAWTOHEX(KINGAKU),
+             SELECT RAWTOHEX(TORIHIKI_DT), RAWTOHEX(TORIHIKI_KBN),
+                    RAWTOHEX(KINGAKU),
                     NVL(RAWTOHEX(TESURYO),'000000'), TEKIYOU,
                     NVL(RAWTOHEX(AITE_KOUZA),'F0F0F0F0F0F0F0')
                FROM TORIHIKI
@@ -98,11 +102,19 @@
            PERFORM UNTIL SQLCODE NOT = 0 OR N >= 1000
                EXEC SQL
                    FETCH C-MEISAI
-                     INTO :HV-DT, :HV-KBN, :HV-KIN-HX, :HV-TES-HX,
+                     INTO :HV-DT-HX, :HV-KBN-HX, :HV-KIN-HX, :HV-TES-HX,
                           :HV-TEK, :HV-AITE-HX
                END-EXEC
                IF SQLCODE = 0
                    ADD 1 TO N
+                   MOVE HV-DT-HX TO TX-HEX
+                   MOVE 28 TO TX-HLEN
+                   PERFORM DEC-TXT
+                   MOVE TX-UTF8(1:TX-ULEN) TO HV-DT
+                   MOVE HV-KBN-HX TO TX-HEX
+                   MOVE 2 TO TX-HLEN
+                   PERFORM DEC-TXT
+                   MOVE TX-UTF8(1:TX-ULEN) TO HV-KBN
                    MOVE HV-KIN-HX TO PK-HEX
                    PERFORM DEC-P11 MOVE PK-P11 TO HV-KIN
                    MOVE HV-TES-HX TO PK-HEX(1:6)
@@ -245,6 +257,7 @@
                   INTO RESP-BUF WITH POINTER RESP-PTR.
        COPY PFMTNUM.
        COPY PPACK.
+       COPY PTXT.
        COPY PDBCON.
        COPY PERRJSON.
        END PROGRAM MEISAI.
