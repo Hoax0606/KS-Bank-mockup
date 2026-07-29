@@ -79,6 +79,37 @@ public class AccountRepository {
          WHERE k.kouza_no = ?
         """;
 
+    public long nextKouzaDyn() {
+        Long v = jdbc.queryForObject("SELECT nextval('seq_kouza_dyn')", Long.class);
+        return v == null ? 0 : v;
+    }
+
+    /** KOUZA 신규 삽입(개설). */
+    public void insertKouza(byte[] no, byte[] kanji, byte[] kana, byte[] shubetsu,
+                            byte[] zandaka, byte[] kaisetsu, byte[] joutai) {
+        jdbc.update("""
+            INSERT INTO kouza (kouza_no, meigi_kanji, meigi_kana, shubetsu,
+                               zandaka, kaisetsu_bi, joutai)
+            VALUES (?,?,?,?,?,?,?)""", ps -> {
+            ps.setBytes(1, no); ps.setBytes(2, kanji); ps.setBytes(3, kana);
+            ps.setBytes(4, shubetsu); ps.setBytes(5, zandaka);
+            ps.setBytes(6, kaisetsu); ps.setBytes(7, joutai);
+        });
+    }
+
+    /** KOUZA_EXT 신규 삽입(필수 컬럼 + UTF-8 미러; 프로필은 NULL). */
+    public void insertKouzaExt(byte[] no, byte[] branch, byte[] acctType, byte[] pw,
+                               byte[] isPrimary, String kanjiMirror, String kanaMirror) {
+        jdbc.update("""
+            INSERT INTO kouza_ext (kouza_no, branch_code, acct_type, password,
+                                   is_primary, kanji_utf8, kana_utf8)
+            VALUES (?,?,?,?,?,?,?)""", ps -> {
+            ps.setBytes(1, no); ps.setBytes(2, branch); ps.setBytes(3, acctType);
+            ps.setBytes(4, pw); ps.setBytes(5, isPrimary);
+            ps.setString(6, kanjiMirror); ps.setString(7, kanaMirror);
+        });
+    }
+
     /** 계좌 상세(KOUZA+KOUZA_EXT). 없으면 empty. */
     public Optional<AccountDetail> findDetail(byte[] kouzaNo) {
         return jdbc.query(DETAIL_SQL,
