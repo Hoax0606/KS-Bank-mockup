@@ -9,3 +9,9 @@
 *.cbl text eol=lf
 *.cpy text eol=lf
 *.c   text eol=lf
+
+# Java 백엔드도 리눅스 Docker(Maven)에서 빌드 → LF 고정
+*.java text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.xml  text eol=lf
