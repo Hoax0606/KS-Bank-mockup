@@ -41,19 +41,17 @@
        01  L6.
            05 FILLER   PIC X(11) VALUE "TXN COUNT =".
            05 L6V      PIC 9(9).
-       COPY WPACK.
        COPY WDB.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
-       01  HV-SHU-HX   PIC X(2).
-       01  HV-JOU-HX   PIC X(2).
-       01  HV-ZAN-HX   PIC X(12).
+       01  HV-SHU      PIC X(1).
+       01  HV-JOU      PIC X(1).
+       01  HV-ZAN      PIC S9(11).
        01  IND-ZAN     PIC S9(4) COMP.
        01  HV-TX       PIC 9(9).
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-TK CURSOR FOR
-             SELECT RAWTOHEX(SHUBETSU), RAWTOHEX(JOUTAI),
-                    RAWTOHEX(ZANDAKA)
+             SELECT SHUBETSU, JOUTAI, ZANDAKA
                FROM KOUZA
        END-EXEC.
        PROCEDURE DIVISION.
@@ -71,8 +69,8 @@
            EXEC SQL OPEN C-TK END-EXEC
            PERFORM UNTIL SQLCODE NOT = 0
                EXEC SQL
-                   FETCH C-TK INTO :HV-SHU-HX, :HV-JOU-HX,
-                        :HV-ZAN-HX:IND-ZAN
+                   FETCH C-TK INTO :HV-SHU, :HV-JOU,
+                        :HV-ZAN:IND-ZAN
                END-EXEC
                IF SQLCODE = 0
                    PERFORM ACCUM
@@ -101,20 +99,17 @@
            STOP RUN.
        ACCUM.
            ADD 1 TO N-ACCT
-           IF HV-SHU-HX(2:1) = "1"
+           IF HV-SHU = "1"
                ADD 1 TO N-FUTSU
            END-IF
-           IF HV-SHU-HX(2:1) = "2"
+           IF HV-SHU = "2"
                ADD 1 TO N-TOUZA
            END-IF
-           IF HV-JOU-HX(2:1) = "9"
+           IF HV-JOU = "9"
                ADD 1 TO N-FROZEN
            END-IF
            IF IND-ZAN >= 0
-               MOVE HV-ZAN-HX TO PK-HEX(1:12)
-               PERFORM DEC-P11
-               ADD PK-P11 TO T-BAL
+               ADD HV-ZAN TO T-BAL
            END-IF.
-       COPY PPACK.
        COPY PDBCONB.
        END PROGRAM TOKEBAT.

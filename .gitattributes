@@ -4,3 +4,8 @@
 
 # DB 스크립트도 LF 고정(sqlplus는 CRLF도 견디지만 일관성 유지)
 *.sql text eol=lf
+
+# COBOL/C 소스도 리눅스 컨테이너에서 컴파일 → LF 고정(고정형식 컬럼 보호)
+*.cbl text eol=lf
+*.cpy text eol=lf
+*.c   text eol=lf
