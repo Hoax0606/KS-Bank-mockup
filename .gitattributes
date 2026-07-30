@@ -1,0 +1,6 @@
+# 컨테이너(리눅스)에서 실행되는 셸 스크립트는 반드시 LF 유지.
+# CRLF로 체크아웃되면 '#!/bin/bash\r' 때문에 컨테이너 안에서 실행이 깨진다.
+*.sh text eol=lf
+
+# DB 스크립트도 LF 고정(sqlplus는 CRLF도 견디지만 일관성 유지)
+*.sql text eol=lf
