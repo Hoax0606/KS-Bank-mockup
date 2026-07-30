@@ -1,5 +1,11 @@
 server:
   port: 8080
+  # 폼 파라미터(일본어) 요청/응답을 UTF-8로 강제 (서블릿 기본 ISO-8859-1 방지)
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 spring:
   application:

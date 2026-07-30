@@ -20,27 +20,31 @@ public class ReportRepository {
         return jdbc.query("""
             SELECT kouza_no, shubetsu, joutai, zandaka, kaisetsu_bi
               FROM kouza ORDER BY kouza_no""",
-            (rs, i) -> new AcctAgg(rs.getBytes(1), rs.getBytes(2), rs.getBytes(3),
-                                   rs.getBytes(4), rs.getBytes(5)));
+            (rs, i) -> new AcctAgg(rs.getInt(1), rs.getString(2), rs.getString(3),
+                                   rs.getLong(4), rs.getString(5)));
     }
 
     public List<TxnAgg> allTxns() {
         return jdbc.query("SELECT torihiki_kbn, kingaku, tesuryo FROM torihiki",
-            (rs, i) -> new TxnAgg(rs.getBytes(1), rs.getBytes(2), rs.getBytes(3)));
+            (rs, i) -> {
+                Object tes = rs.getObject(3);
+                return new TxnAgg(rs.getString(1), rs.getLong(2),
+                                  tes == null ? null : ((Number) tes).longValue());
+            });
     }
 
-    /** 무거래(휴면 후보) 계좌 번호 목록(RAW). */
-    public List<byte[]> dormantAccounts() {
+    /** 무거래(휴면 후보) 계좌 번호 목록. */
+    public List<Long> dormantAccounts() {
         return jdbc.query("""
             SELECT k.kouza_no FROM kouza k
              WHERE NOT EXISTS (SELECT 1 FROM torihiki t WHERE t.kouza_no = k.kouza_no)
              ORDER BY k.kouza_no""",
-            (rs, i) -> rs.getBytes(1));
+            (rs, i) -> rs.getLong(1));
     }
 
-    public boolean hasTxn(byte[] kouzaNo) {
+    public boolean hasTxn(int kouzaNo) {
         Integer n = jdbc.query("SELECT count(*) FROM torihiki WHERE kouza_no = ?",
-            ps -> ps.setBytes(1, kouzaNo),
+            ps -> ps.setInt(1, kouzaNo),
             rs -> rs.next() ? rs.getInt(1) : 0);
         return n != null && n > 0;
     }

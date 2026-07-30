@@ -37,12 +37,7 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- 富士通 JEF EBCDIC 코덱 (COBOL판 jef4j.jar 그대로 재사용) -->
-    <dependency>
-      <groupId>net.arnx</groupId>
-      <artifactId>jef4j</artifactId>
-      <version>0.13.0</version>
-    </dependency>
+    <!-- (JEF EBCDIC 코덱 jef4j 의존성은 Shift-JIS/UTF-8 전환으로 제거) -->
 
     <dependency>
       <groupId>org.springframework.boot</groupId>

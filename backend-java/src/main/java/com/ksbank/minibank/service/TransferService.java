@@ -4,8 +4,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import com.ksbank.minibank.codec.PackedDecimalCodec;
-import com.ksbank.minibank.codec.ZonedDecimalCodec;
 import com.ksbank.minibank.config.GlobalExceptionHandler.BusinessException;
 import com.ksbank.minibank.domain.BalanceRow;
 import com.ksbank.minibank.repository.AccountRepository;
@@ -39,36 +37,31 @@ public class TransferService {
         long amount = parseAmount(kingakuStr);
         long total = amount + FEE;
 
-        byte[] kzRaw = ZonedDecimalCodec.encode(kz);
-        byte[] azRaw = ZonedDecimalCodec.encode(az);
+        int kzNo = Integer.parseInt(kz);
+        int azNo = Integer.parseInt(az);
 
-        BalanceRow sender = accounts.findBalance(kzRaw)
+        BalanceRow sender = accounts.findBalance(kzNo)
             .orElseThrow(() -> err(HttpStatus.NOT_FOUND, "kouza_not_found"));
         if (isFrozen(sender.joutai())) throw err(HttpStatus.CONFLICT, "account_frozen");
-        long bal = sender.zandaka() == null ? 0 : PackedDecimalCodec.decode(sender.zandaka());
+        long bal = sender.zandaka();
         if (bal < total) throw err(HttpStatus.CONFLICT, "insufficient_funds");
 
-        boolean aiteExists = accounts.exists(azRaw);
+        boolean aiteExists = accounts.exists(azNo);
         long tid = txns.nextTorihikiId();
         long rseq = txns.nextReceiptSeq();
         String dt = LocalDateTime.now().format(DT);
-        byte[] dtRaw = ZonedDecimalCodec.encode(dt);          // 14 EBCDIC 숫자
-        byte[] amtRaw = PackedDecimalCodec.encode(amount, 6);
-        byte[] feeRaw = PackedDecimalCodec.encode(FEE, 3);
 
         // ===== 원자적 트랜잭션 (예외 시 @Transactional 롤백) =====
         long afterBal = bal - total;
-        accounts.updateBalance(kzRaw, PackedDecimalCodec.encode(afterBal, 6));
-        txns.insert(key12(tid), kzRaw, dtRaw, ZonedDecimalCodec.encode("3"),
-                    amtRaw, azRaw, feeRaw);                    // 출금측 KBN3
+        accounts.updateBalance(kzNo, afterBal);
+        txns.insert(tid, kzNo, dt, "3", amount, azNo, (int) FEE);   // 출금측 KBN3
 
         if (aiteExists) {
-            BalanceRow rcv = accounts.findBalance(azRaw).orElseThrow(
+            BalanceRow rcv = accounts.findBalance(azNo).orElseThrow(
                 () -> err(HttpStatus.INTERNAL_SERVER_ERROR, "transfer_failed"));
-            long rbal = rcv.zandaka() == null ? 0 : PackedDecimalCodec.decode(rcv.zandaka());
-            accounts.updateBalance(azRaw, PackedDecimalCodec.encode(rbal + amount, 6));
-            txns.insert(key12(txns.nextTorihikiId()), azRaw, dtRaw,
-                        ZonedDecimalCodec.encode("1"), amtRaw, null, null); // 입금측 KBN1
+            long rbal = rcv.zandaka();
+            accounts.updateBalance(azNo, rbal + amount);
+            txns.insert(txns.nextTorihikiId(), azNo, dt, "1", amount, null, null); // 입금측 KBN1
         }
         // ===== 커밋(정상 반환 시) =====
 
@@ -84,12 +77,8 @@ public class TransferService {
         return res;
     }
 
-    private static boolean isFrozen(byte[] joutai) {
-        return joutai != null && joutai.length > 0 && (joutai[0] & 0xFF) == 0xF9;
-    }
-
-    private static byte[] key12(long v) {
-        return ZonedDecimalCodec.encode(String.format("%012d", v));
+    private static boolean isFrozen(String joutai) {
+        return "9".equals(joutai);
     }
 
     private static String digits7(String s, String missingKey) {

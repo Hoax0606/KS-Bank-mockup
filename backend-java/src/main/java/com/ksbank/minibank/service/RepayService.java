@@ -1,12 +1,8 @@
 package com.ksbank.minibank.service;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import com.ksbank.minibank.codec.Enc;
-import com.ksbank.minibank.codec.JefCodec;
-import com.ksbank.minibank.codec.PackedDecimalCodec;
 import com.ksbank.minibank.config.GlobalExceptionHandler.BusinessException;
 import com.ksbank.minibank.domain.BalanceRow;
 import com.ksbank.minibank.domain.LoanForRepay;
@@ -20,10 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RepayService {
 
-    private static final byte[] ACTIVE = JefCodec.encode("ACTIVE");
-    private static final byte[] CLOSED = JefCodec.encode("CLOSED");
+    private static final String ACTIVE = "ACTIVE";
+    private static final String CLOSED = "CLOSED";
     private static final long FEE = 550;
-    private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final AccountRepository accounts;
     private final LoanRepository loans;
@@ -36,35 +31,33 @@ public class RepayService {
     @Transactional
     public Map<String, Object> repay(String loanIdStr, String principalStr) {
         long loanId = parseLong(loanIdStr);
-        byte[] lid = Enc.key(loanId, 12);
         long prin = parseAmount(principalStr);
 
-        LoanForRepay lf = loans.findForRepay(lid, ACTIVE)
+        LoanForRepay lf = loans.findForRepay(loanId, ACTIVE)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "loan_not_found"));
-        long bal = lf.balance() == null ? 0 : PackedDecimalCodec.decode(lf.balance());
-        double rate = (lf.rate() == null ? 0 : PackedDecimalCodec.decode(lf.rate())) / 1000.0;
+        long bal = lf.balance();
+        double rate = lf.rate();   // 예: 2.5 (%)
         if (prin > bal) throw new BusinessException(HttpStatus.CONFLICT, "over_balance");
 
         long interest = Math.round(bal * rate / 100.0 / 12.0);
         long total = prin + interest + FEE;
 
-        byte[] kz = lf.kouzaNo();
+        int kz = lf.kouzaNo();
         BalanceRow acc = accounts.findBalance(kz).orElseThrow(
             () -> new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "repay_failed"));
-        long zan = acc.zandaka() == null ? 0 : PackedDecimalCodec.decode(acc.zandaka());
+        long zan = acc.zandaka();
         if (zan < total) throw new BusinessException(HttpStatus.CONFLICT, "insufficient_funds");
 
         long newBal = bal - prin;
         boolean closed = newBal <= 0;
 
-        accounts.updateBalance(kz, Enc.amount(zan - total));
+        accounts.updateBalance(kz, zan - total);
         if (closed) {
-            loans.close(lid, Enc.amount(0), CLOSED, Enc.key(LocalDate.now().format(YMD)));
+            loans.close(loanId, 0, CLOSED, LocalDate.now());
         } else {
-            loans.updateBalance(lid, Enc.amount(newBal));
+            loans.updateBalance(loanId, newBal);
         }
-        loans.insertRepay(Enc.key(loans.nextRepayId(), 15), lid,
-            Enc.amount(prin), Enc.amount(interest), Enc.amount(FEE), Enc.amount(total));
+        loans.insertRepay(loans.nextRepayId(), loanId, prin, interest, FEE, total);
 
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("ok", true);

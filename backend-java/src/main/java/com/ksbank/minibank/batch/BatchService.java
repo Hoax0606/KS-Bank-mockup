@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import com.ksbank.minibank.codec.Enc;
-import com.ksbank.minibank.codec.Fields;
 import com.ksbank.minibank.domain.AcctAgg;
 import com.ksbank.minibank.domain.TxnAgg;
 import com.ksbank.minibank.repository.AccountRepository;
@@ -50,12 +48,12 @@ public class BatchService {
     private Map<String, Object> posting() {
         long posted = 0, interestTotal = 0;
         for (AcctAgg a : reports.allAccounts()) {
-            if (!"1".equals(Fields.text(a.shubetsu()))) continue;      // 普通만
-            if (!reports.hasTxn(a.kouzaNo())) continue;                // 당일거래 있는 계좌만
-            long bal = Fields.amount(a.zandaka());
+            if (!"1".equals(a.shubetsu())) continue;      // 普通만
+            if (!reports.hasTxn(a.kouzaNo())) continue;   // 당일거래 있는 계좌만
+            long bal = a.zandaka();
             long interest = bal / INTEREST_DIV;
             if (interest <= 0) continue;
-            accounts.updateBalance(a.kouzaNo(), Enc.amount(bal + interest));
+            accounts.updateBalance(a.kouzaNo(), bal + interest);
             posted++;
             interestTotal += interest;
         }
@@ -66,9 +64,9 @@ public class BatchService {
     private Map<String, Object> dailyTxnReport() {
         long[] cnt = new long[4], sum = new long[4];
         for (TxnAgg t : reports.allTxns()) {
-            int k = kbnIndex(Fields.text(t.kbn()));
+            int k = kbnIndex(t.kbn());
             cnt[k]++;
-            sum[k] += Fields.amount(t.kingaku());
+            sum[k] += t.kingaku();
         }
         Map<String, Object> m = new LinkedHashMap<>();
         for (int k = 1; k <= 3; k++) m.put("kbn" + k, Map.of("count", cnt[k], "sum", sum[k]));
@@ -80,9 +78,9 @@ public class BatchService {
         List<Map<String, Object>> rows = new ArrayList<>();
         long total = 0;
         for (AcctAgg a : reports.allAccounts()) {
-            long bal = Fields.amount(a.zandaka());
+            long bal = a.zandaka();
             total += bal;
-            rows.add(Map.of("kouza", Fields.zonedNum(a.kouzaNo()), "zandaka", bal));
+            rows.add(Map.of("kouza", (long) a.kouzaNo(), "zandaka", bal));
         }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("count", rows.size());
@@ -97,16 +95,14 @@ public class BatchService {
         for (TxnAgg t : reports.allTxns()) {
             if (t.tesuryo() == null) continue;
             cnt++;
-            total += Fields.amount(t.tesuryo());
+            total += t.tesuryo();
         }
         return Map.of("count", cnt, "total", total);
     }
 
     /** 8. KYUMBAT: 무거래(휴면) 계좌. */
     private List<Long> dormant() {
-        List<Long> out = new ArrayList<>();
-        for (byte[] no : reports.dormantAccounts()) out.add(Fields.zonedNum(no));
-        return out;
+        return new ArrayList<>(reports.dormantAccounts());
     }
 
     /** 9. MASTBAT: 계좌 마스터 일람. */
@@ -114,11 +110,11 @@ public class BatchService {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (AcctAgg a : reports.allAccounts()) {
             Map<String, Object> r = new LinkedHashMap<>();
-            r.put("kouza", Fields.zonedNum(a.kouzaNo()));
-            r.put("shubetsu", Fields.text(a.shubetsu()));
-            r.put("joutai", Fields.text(a.joutai()));
-            r.put("kaisetsu", Fields.text(a.kaisetsu()));
-            r.put("zandaka", Fields.amount(a.zandaka()));
+            r.put("kouza", (long) a.kouzaNo());
+            r.put("shubetsu", a.shubetsu());
+            r.put("joutai", a.joutai());
+            r.put("kaisetsu", a.kaisetsu());
+            r.put("zandaka", a.zandaka());
             rows.add(r);
         }
         return rows;
@@ -129,11 +125,11 @@ public class BatchService {
         long accts = 0, futsu = 0, touza = 0, frozen = 0, totalBal = 0;
         for (AcctAgg a : reports.allAccounts()) {
             accts++;
-            String shu = Fields.text(a.shubetsu());
+            String shu = a.shubetsu();
             if ("1".equals(shu)) futsu++;
             if ("2".equals(shu)) touza++;
-            if ("9".equals(Fields.text(a.joutai()))) frozen++;
-            totalBal += Fields.amount(a.zandaka());
+            if ("9".equals(a.joutai())) frozen++;
+            totalBal += a.zandaka();
         }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("accounts", accts);

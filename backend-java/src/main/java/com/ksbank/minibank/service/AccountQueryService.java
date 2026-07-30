@@ -3,8 +3,6 @@ package com.ksbank.minibank.service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import com.ksbank.minibank.codec.Fields;
-import com.ksbank.minibank.codec.ZonedDecimalCodec;
 import com.ksbank.minibank.config.GlobalExceptionHandler.BusinessException;
 import com.ksbank.minibank.domain.AccountDetail;
 import com.ksbank.minibank.repository.AccountRepository;
@@ -28,11 +26,11 @@ public class AccountQueryService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("ok", true);
         m.put("kouza", kz);
-        m.put("meigiKanji", Fields.nameOrMirror(a.meigiKanji(), a.kanjiMirror()));
-        m.put("meigiKana", Fields.nameOrMirror(a.meigiKana(), a.kanaMirror()));
-        m.put("shubetsu", Fields.text(a.shubetsu()));
-        m.put("zandaka", Fields.amount(a.zandaka()));
-        m.put("joutai", Fields.text(a.joutai()));
+        m.put("meigiKanji", nz(a.meigiKanji()));
+        m.put("meigiKana", nz(a.meigiKana()));
+        m.put("shubetsu", nz(a.shubetsu()));
+        m.put("zandaka", a.zandaka());
+        m.put("joutai", nz(a.joutai()));
         return m;
     }
 
@@ -42,13 +40,13 @@ public class AccountQueryService {
         AccountDetail a = detail(kz);
         Map<String, Object> h = new LinkedHashMap<>();
         h.put("kouza", kz);
-        h.put("branch", Fields.text(a.branchCode()));
-        h.put("meigiKanji", Fields.nameOrMirror(a.meigiKanji(), a.kanjiMirror()));
-        h.put("shubetsu", Fields.text(a.shubetsu()));
-        h.put("type", Fields.text(a.acctType()));
-        h.put("joutai", Fields.text(a.joutai()));
-        h.put("isPrimary", Fields.text(a.isPrimary()));   // E8→"Y" / D5→"N"
-        h.put("zandaka", Fields.amount(a.zandaka()));
+        h.put("branch", nz(a.branchCode()));
+        h.put("meigiKanji", nz(a.meigiKanji()));
+        h.put("shubetsu", nz(a.shubetsu()));
+        h.put("type", nz(a.acctType()));
+        h.put("joutai", nz(a.joutai()));
+        h.put("isPrimary", nz(a.isPrimary()));   // "Y"/"N"
+        h.put("zandaka", a.zandaka());
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("ok", true);
         m.put("holdings", List.of(h));
@@ -56,9 +54,11 @@ public class AccountQueryService {
     }
 
     private AccountDetail detail(String kz) {
-        return accounts.findDetail(ZonedDecimalCodec.encode(kz))
+        return accounts.findDetail(Integer.parseInt(kz))
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "kouza_not_found"));
     }
+
+    private static String nz(String s) { return s == null ? "" : s; }
 
     private static String digits7(String s) {
         String d = s == null ? "" : s.replaceAll("[^0-9]", "");
