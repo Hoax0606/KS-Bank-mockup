@@ -25,7 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential gnucobol \
       nginx fcgiwrap spawn-fcgi \
       libaio1 unzip wget ca-certificates netcat-openbsd git tzdata \
-      openjdk-17-jdk-headless \
       autoconf automake libtool pkg-config \
       libspdlog-dev libfmt-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -58,9 +57,7 @@ COPY backend-cobol/ /app/
 # フロントエンド(無変更再利用)を配信ルートへ
 COPY frontend/ /app/frontend/
 RUN cd /app/build && make GIXHOME=${GIXHOME}
-# JEF: COBOL↔サービス C ブリッジ(.so) と JEF 変換サービス(Java/JEF4J)をビルド
-RUN gcc -shared -fPIC /app/cobol/JEFCONV.c -o /app/build/lib/JEFCONV.so
-RUN cd /app/jef && javac -encoding UTF-8 -cp jef4j.jar JefServer.java
+# (JEF C ブリッジ / Java 変換サービスは Shift-JIS 전환으로 폐지)
 
 # ---- ランタイム環境(CGI/バッチ共通で継承) ----
 #   COB_LIBRARY_PATH: 動的 CALL するモジュール(.so)の探索先。

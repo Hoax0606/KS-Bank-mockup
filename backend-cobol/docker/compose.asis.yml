@@ -44,9 +44,8 @@ services:
       ORA_CONN: "oracle://oracle:1521/FREEPDB1"
       ORA_USER: "minibank"
       ORA_PASS: "minibank"
-      # TODO(③): DB가 이제 JA16SJIS 일반 타입 저장이므로, COBOL 코드에서
-      #   JEF/COMP-3/존10진 코덱 제거 후 클라이언트 NLS_LANG를 JA16SJIS로
-      #   맞춰 SJIS 바이트를 그대로 받도록 재작업 필요. (현재 값은 전환 전 임시)
+      # DB는 JA16SJIS 저장. GixSQL 드라이버가 취득 시 UTF-8로 강제 변환하므로
+      # (NLS_LANG 실질 무시) 응답은 UTF-8. 프론트도 UTF-8.
       NLS_LANG: "AMERICAN_AMERICA.AL32UTF8"
     ports:
       - "8080:80"
