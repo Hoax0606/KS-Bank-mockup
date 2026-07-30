@@ -89,6 +89,21 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 - **재배포**(소스 변경 시): 백엔드 이미지만 재빌드(§4.4). ★**oracle 컨테이너는 절대 건드리지 말 것**(라이브 데이터).
 - **데이터 초기화**: `sql/01_ddl`+`02_seed` 재적용(§4.5)
 
+### 컨테이너 / 프로젝트 이름 (docker 명령용)
+
+`docker exec` / `docker logs` / `docker restart` 등에 쓰는 실제 이름:
+
+| 환경 | compose 프로젝트 | 컨테이너 (앱 / DB) | 포트 | 비고 |
+|------|------------------|--------------------|------|------|
+| 로컬 COBOL | `minibank-cobol` | `mb-asis-backend` / `mb-oracle` | 8080 / 1521 | compose 기본 네트워크 |
+| 로컬 Java | `minibank-java` | `mbj-app` / `mbj-postgres` | 8081 / 5433 | |
+| **서버(라이브) COBOL** | (compose 아닌 `docker run`) | `mb-asis-backend` / **`oracle`** | 8090 / 1521 | 네트워크 `mbnet` |
+
+- ⚠️ **Oracle 컨테이너 이름이 환경마다 다름**: 로컬 = `mb-oracle`, **서버 = `oracle`**. `docker exec`/`docker cp` 시 환경에 맞게 사용.
+  (예: 서버 배치 = `sudo docker exec ... mb-asis-backend ...`, 서버 초기화 = `sudo docker cp ... oracle:/tmp/...`)
+- 로컬은 `docker`가 그냥 되지만, **서버는 `sudo docker`** 로 실행.
+- Java는 아직 서버 미배포(로컬만). 서버 배포 시엔 포트 `8091` 등 COBOL(8090)과 겹치지 않게.
+
 ### DB 직접 조회 (DBeaver 등)
 
 > 원본 테이블은 **RAW 바이트(bytea/RAW)** 라 사람이 못 읽습니다. 사람이 읽으려면 **디코드 뷰 `V_*`** 를 보세요.
