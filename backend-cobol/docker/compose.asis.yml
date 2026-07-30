@@ -8,23 +8,28 @@
 name: minibank-cobol
 services:
   oracle:
-    image: gvenzl/oracle-free:23-slim
+    # ★ JA16SJIS(Shift-JIS) 오라클.
+    #   무료 오라클 컨테이너(gvenzl 등)는 프리빌드 DB가 AL32UTF8로 고정돼
+    #   ORACLE_CHARACTERSET를 무시한다. 그래서 정식 이미지를 빌드 타임에
+    #   dbca 로 JA16SJIS DB로 재생성하고 스키마+시드까지 구워 넣은
+    #   커스텀 이미지(Dockerfile.oracle-sjis)를 사용한다.
+    #   최초 빌드 ~10분(이미지 ~18GB), 이후는 캐시 재사용.
+    build:
+      context: ../..                    # 리포지토리 루트
+      dockerfile: backend-cobol/docker/Dockerfile.oracle-sjis
+    image: mb-oracle-sjis:latest
     container_name: mb-oracle
     environment:
-      ORACLE_PASSWORD: oracle           # SYS/SYSTEM 비밀번호
-      APP_USER: minibank                # 앱 스키마 유저
-      APP_USER_PASSWORD: minibank
+      ORACLE_PWD: oracle                # SYS/SYSTEM/PDBADMIN 비밀번호(정식 이미지 변수)
     ports:
       - "1521:1521"
-    volumes:
-      # init 스크립트로 DDL+시드 자동 적재(알파벳 순 실행)
-      - ../sql/01_ddl.sql:/container-entrypoint-initdb.d/01_ddl.sql:ro
-      - ../sql/02_seed.sql:/container-entrypoint-initdb.d/02_seed.sql:ro
     healthcheck:
-      test: ["CMD", "healthcheck.sh"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
+      # 앱 계정으로 실제 접속돼야 정상(=FREEPDB1 자동오픈 + 스키마 존재)
+      test: ["CMD-SHELL", "echo 'select 1 from dual;' | \"$$ORACLE_HOME/bin/sqlplus\" -s -L minibank/minibank@//localhost:1521/FREEPDB1 | grep -q 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 180s
     restart: unless-stopped
 
   asis-backend:
@@ -39,7 +44,9 @@ services:
       ORA_CONN: "oracle://oracle:1521/FREEPDB1"
       ORA_USER: "minibank"
       ORA_PASS: "minibank"
-      # RAW 무변환 통과(§2). 일본어 컬럼은 RAW라 문자집합 변환 안 받음.
+      # TODO(③): DB가 이제 JA16SJIS 일반 타입 저장이므로, COBOL 코드에서
+      #   JEF/COMP-3/존10진 코덱 제거 후 클라이언트 NLS_LANG를 JA16SJIS로
+      #   맞춰 SJIS 바이트를 그대로 받도록 재작업 필요. (현재 값은 전환 전 임시)
       NLS_LANG: "AMERICAN_AMERICA.AL32UTF8"
     ports:
       - "8080:80"

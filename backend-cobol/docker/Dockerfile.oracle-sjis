@@ -1,0 +1,17 @@
+# ============================================================
+#  Oracle (JA16SJIS / Shift-JIS) 이미지
+#   정식 Oracle Free 이미지의 프리빌드 DB(AL32UTF8)를 빌드 타임에
+#   JA16SJIS 로 재생성하고 앱유저+스키마+시드까지 구워 넣는다.
+#   (oradata 가 VOLUME 이 아니라 결과가 이미지에 그대로 남음)
+#   빌드 컨텍스트 = 리포지토리 루트
+# ============================================================
+FROM container-registry.oracle.com/database/free:latest
+
+# UTF-8 시드/DDL + 빌드 스크립트 반입
+COPY backend-cobol/sql/01_ddl.sql        /tmp/sjis/01_ddl.sql
+COPY backend-cobol/sql/02_seed.sql       /tmp/sjis/02_seed.sql
+COPY backend-cobol/docker/oracle-sjis/mkuser.sql       /tmp/sjis/mkuser.sql
+COPY backend-cobol/docker/oracle-sjis/build-sjis-db.sh /tmp/sjis/build-sjis-db.sh
+
+USER oracle
+RUN bash /tmp/sjis/build-sjis-db.sh
