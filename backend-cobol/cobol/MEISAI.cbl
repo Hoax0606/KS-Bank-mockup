@@ -2,11 +2,7 @@
       *> MEISAI  -  取引明細照会 CGI (オンライン 5種の1)
       *>   GET: kouza, [kbn=all|1|2|3], [from=YYYYMMDD], [to=YYYYMMDD]
       *>   取引後残高(afterBal)を累積計算し、新しい順に JSON 配列で返す。
-      *>   摘要(RAW)は TEAMENC で UTF-8 化(オンライン応答は UTF-8 確定)。
-      *>   応答:
-      *>     {"ok":true,"kouza":"...","rows":[
-      *>        {"date":"2026-06-01","kbn":"1","kingaku":200000,
-      *>         "afterBal":723400,"memo":"…"}, ... ]}
+      *>   通常型/Shift-JIS DB版: 金額/口座=NUMBER, 摘要=VARCHAR2(UTF-8) 直接。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. MEISAI.
@@ -30,39 +26,28 @@
            05  RW OCCURS 1000 TIMES INDEXED BY RX.
                10  RW-DT     PIC X(14).
                10  RW-KBN    PIC X(01).
-               10  RW-KIN    PIC S9(11) COMP-3.
-               10  RW-TES    PIC S9(05) COMP-3.
-               10  RW-TEK    PIC X(40).
-               10  RW-AFTER  PIC S9(11) COMP-3.
-               10  RW-AITE   PIC S9(7)  COMP-3.
-       COPY WPACK.
-       COPY WTXT.
+               10  RW-KIN    PIC S9(11).
+               10  RW-TES    PIC S9(05).
+               10  RW-TEK    PIC X(80).
+               10  RW-AFTER  PIC S9(11).
+               10  RW-AITE   PIC S9(7).
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
        01  HV-KOUZA    PIC 9(7).
-       01  HV-KZ-HEX   PIC X(14).
        01  HV-DT       PIC X(14).
-       01  HV-DT-HX    PIC X(30).
        01  HV-KBN      PIC X(01).
-       01  HV-KBN-HX   PIC X(4).
-       01  HV-KIN      PIC S9(11) COMP-3.
-       01  HV-KIN-HX   PIC X(12).
-       01  HV-TES      PIC S9(05) COMP-3.
-       01  HV-TES-HX   PIC X(6).
-       01  HV-TEK      PIC X(40).
-       01  HV-AITE     PIC S9(7)  COMP-3.
-       01  HV-AITE-HX  PIC X(14).
-       01  HV-ZAN      PIC S9(11) COMP-3.
-       01  HV-ZAN-HX   PIC X(12).
+       01  HV-KIN      PIC S9(11).
+       01  HV-TES      PIC S9(05).
+       01  HV-TEK      PIC X(80).
+       01  HV-AITE     PIC S9(7).
+       01  HV-ZAN      PIC S9(11).
        01  HV-CNT      PIC 9(9).
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-MEISAI CURSOR FOR
-             SELECT RAWTOHEX(TORIHIKI_DT), RAWTOHEX(TORIHIKI_KBN),
-                    RAWTOHEX(KINGAKU),
-                    NVL(RAWTOHEX(TESURYO),'000000'), TEKIYOU,
-                    NVL(RAWTOHEX(AITE_KOUZA),'F0F0F0F0F0F0F0')
+             SELECT TORIHIKI_DT, TORIHIKI_KBN, KINGAKU,
+                    NVL(TESURYO,0), TEKIYOU, NVL(AITE_KOUZA,0)
                FROM TORIHIKI
-              WHERE KOUZA_NO = HEXTORAW(:HV-KZ-HEX)
+              WHERE KOUZA_NO = :HV-KOUZA
               ORDER BY TORIHIKI_DT ASC, TORIHIKI_ID ASC
        END-EXEC.
        PROCEDURE DIVISION.
@@ -74,54 +59,32 @@
                MOVE "missing_kouza" TO WK-ERRMSG PERFORM ERR-400
            END-IF
            MOVE FUNCTION NUMVAL(CP-VALUE) TO HV-KOUZA
-           MOVE HV-KOUZA TO KY-STR(1:7)
-           MOVE 7 TO KY-N
-           PERFORM ENC-KEY
-           MOVE KY-HEX(1:14) TO HV-KZ-HEX
            PERFORM READ-FILTERS
            PERFORM DB-CONNECT
       *>   口座存在確認 + 現残高
            EXEC SQL
                SELECT COUNT(*) INTO :HV-CNT
-                 FROM KOUZA WHERE KOUZA_NO = HEXTORAW(:HV-KZ-HEX)
+                 FROM KOUZA WHERE KOUZA_NO = :HV-KOUZA
            END-EXEC
            IF HV-CNT = 0
                PERFORM DB-DISCONNECT
                MOVE "kouza_not_found" TO WK-ERRMSG PERFORM ERR-404
            END-IF
            EXEC SQL
-               SELECT RAWTOHEX(ZANDAKA) INTO :HV-ZAN-HX
-                 FROM KOUZA WHERE KOUZA_NO = HEXTORAW(:HV-KZ-HEX)
+               SELECT ZANDAKA INTO :HV-ZAN
+                 FROM KOUZA WHERE KOUZA_NO = :HV-KOUZA
            END-EXEC
-           MOVE HV-ZAN-HX TO PK-HEX
-           PERFORM DEC-P11
-           MOVE PK-P11 TO HV-ZAN
       *>   全明細を昇順で取得・保持し、符号付き合計を算出
            MOVE 0 TO N WK-SUM
            EXEC SQL OPEN C-MEISAI END-EXEC
            PERFORM UNTIL SQLCODE NOT = 0 OR N >= 1000
                EXEC SQL
                    FETCH C-MEISAI
-                     INTO :HV-DT-HX, :HV-KBN-HX, :HV-KIN-HX, :HV-TES-HX,
-                          :HV-TEK, :HV-AITE-HX
+                     INTO :HV-DT, :HV-KBN, :HV-KIN, :HV-TES,
+                          :HV-TEK, :HV-AITE
                END-EXEC
                IF SQLCODE = 0
                    ADD 1 TO N
-                   MOVE HV-DT-HX TO TX-HEX
-                   MOVE 28 TO TX-HLEN
-                   PERFORM DEC-TXT
-                   MOVE TX-UTF8(1:TX-ULEN) TO HV-DT
-                   MOVE HV-KBN-HX TO TX-HEX
-                   MOVE 2 TO TX-HLEN
-                   PERFORM DEC-TXT
-                   MOVE TX-UTF8(1:TX-ULEN) TO HV-KBN
-                   MOVE HV-KIN-HX TO PK-HEX
-                   PERFORM DEC-P11 MOVE PK-P11 TO HV-KIN
-                   MOVE HV-TES-HX TO PK-HEX(1:6)
-                   PERFORM DEC-P5 MOVE PK-P5 TO HV-TES
-                   MOVE HV-AITE-HX TO KY-HEX(1:14)
-                   MOVE 7 TO KY-N
-                   PERFORM DEC-KEY MOVE KY-STR(1:7) TO HV-AITE
                    MOVE HV-DT  TO RW-DT(N)
                    MOVE HV-KBN TO RW-KBN(N)
                    MOVE HV-KIN TO RW-KIN(N)
@@ -214,16 +177,6 @@
                STRING ',' DELIMITED SIZE
                       INTO RESP-BUF WITH POINTER RESP-PTR
            END-IF
-      *>   摘要 RAW -> UTF-8。空(オンライン生成分は TEKIYOU=NULL)は空文字。
-           IF RW-TEK(I) = SPACES OR RW-TEK(I) = LOW-VALUES
-               MOVE 0 TO UT-OUTLEN
-           ELSE
-               MOVE RW-TEK(I) TO UT-RAW
-               MOVE 40 TO UT-RAWLEN
-               MOVE SPACES TO UT-MIRROR
-               CALL "RAWUTF8" USING UT-RAW UT-RAWLEN UT-MIRROR
-                                    UT-OUT UT-OUTLEN
-           END-IF
            STRING '{"date":"' DELIMITED SIZE
                   RW-DT(I)(1:4) DELIMITED SIZE
                   '-' DELIMITED SIZE
@@ -249,15 +202,14 @@
            STRING FUNCTION TRIM(NUM-STR) DELIMITED SIZE
                   ',"memo":"' DELIMITED SIZE
                   INTO RESP-BUF WITH POINTER RESP-PTR
-           IF UT-OUTLEN > 0
-               STRING UT-OUT(1:UT-OUTLEN) DELIMITED SIZE
+      *>   摘要(VARCHAR2/UTF-8)をそのまま出力。空/LOW-VALUES は空文字。
+           IF RW-TEK(I) NOT = SPACES AND RW-TEK(I) NOT = LOW-VALUES
+               STRING FUNCTION TRIM(RW-TEK(I)) DELIMITED SIZE
                       INTO RESP-BUF WITH POINTER RESP-PTR
            END-IF
            STRING '"}' DELIMITED SIZE
                   INTO RESP-BUF WITH POINTER RESP-PTR.
        COPY PFMTNUM.
-       COPY PPACK.
-       COPY PTXT.
        COPY PDBCON.
        COPY PERRJSON.
        END PROGRAM MEISAI.
