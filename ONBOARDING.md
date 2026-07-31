@@ -161,6 +161,21 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 ---
 
+## 8.5 현재 라이브 배포 현황 (2026-07-31)
+
+**두 스택 모두 마이그레이션 서버에 배포·가동 중.** 서버 주소·SSH·비밀번호는 공개 리포에 넣지 않음 → `minibank-handover/HANDOVER-CONFIDENTIAL.md`(기밀 폴더)의 **배포 런북** 참조.
+
+| 스택 | 포트 | DB | 컨테이너 |
+|---|---|---|---|
+| **COBOL (Shift-JIS)** | `:8092` (UI+API) | 공유 오라클 `oracle_sjis`(XEPDB1)에 `minibank` 스키마 적재 | `mb-cobol-sjis` (이미지 `minibank-cobol-sjis:latest`) |
+| **Java (UTF-8)** | `:8081`(API) / `:5434`(PG) | 신규 PostgreSQL(UTF-8) | `mbj-app` / `mbj-postgres` |
+
+- **오라클은 새로 올리지 않음**: 서버에 이미 있던 공유 Shift-JIS 오라클(`oracle_sjis`, charset `JA16SJISTILDE`, PDB `XEPDB1`)에 `minibank` 유저+스키마+시드만 적재(18GB 이미지 배포 회피). `山田太郎`=`8e52…` Shift-JIS 저장 확인.
+- **⚠️ 컨테이너 IP 주의**: COBOL 백엔드는 `ORA_CONN=oracle://<oracle_sjis 컨테이너IP>:1521/XEPDB1`로 **직접 연결**(호스트 포워딩 1522 경유는 Oracle 리스너 리다이렉트로 hang). `oracle_sjis` 재시작으로 IP가 바뀌면 `mb-cobol-sjis`를 새 IP로 재기동 필요. IP 확인: `sudo docker inspect oracle_sjis --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'`.
+- **⚠️ 공유 서버**: 동료 컨테이너(`oracle_sjis`=limslee, `db2`, `tk4-hercules`)는 불가침. 디스크·RAM 여유가 적으니 무거운 이미지 배포 지양.
+
+---
+
 ## 9. 인수인계 마무리
 
 - [ ] 후임자가 위 §2 4가지 받고 **서버 SSH 접속 성공** 확인
