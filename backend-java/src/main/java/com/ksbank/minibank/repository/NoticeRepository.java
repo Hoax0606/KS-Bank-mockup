@@ -22,23 +22,23 @@ public class NoticeRepository {
     }
 
     /** 유효 공지 목록(새로운 순). */
-    public List<NoticeRow> listActive(byte[] activeFlag) {
+    public List<NoticeRow> listActive(String activeFlag) {
         return jdbc.query("""
             SELECT notice_date, tag, title FROM notice_asis
              WHERE is_active = ? ORDER BY notice_date DESC, notice_id DESC""",
-            ps -> ps.setBytes(1, activeFlag),
-            (rs, i) -> new NoticeRow(rs.getBytes(1), rs.getBytes(2), rs.getBytes(3)));
+            ps -> ps.setString(1, activeFlag),
+            (rs, i) -> new NoticeRow(rs.getString(1), rs.getString(2), rs.getString(3)));
     }
 
-    public void insert(byte[] id, byte[] date, byte[] tag, byte[] title,
-                       byte[] body, byte[] active) {
+    public void insert(long id, String date, String tag, String title,
+                       String body, String active) {
         jdbc.update("""
             INSERT INTO notice_asis (notice_id, notice_date, tag, title, body, is_active)
             VALUES (?,?,?,?,?,?)""", ps -> {
-            ps.setBytes(1, id); ps.setBytes(2, date); ps.setBytes(3, tag);
-            ps.setBytes(4, title);
-            if (body != null) ps.setBytes(5, body); else ps.setNull(5, Types.BINARY);
-            ps.setBytes(6, active);
+            ps.setLong(1, id); ps.setString(2, date); ps.setString(3, tag);
+            ps.setString(4, title);
+            if (body != null) ps.setString(5, body); else ps.setNull(5, Types.VARCHAR);
+            ps.setString(6, active);
         });
     }
 }

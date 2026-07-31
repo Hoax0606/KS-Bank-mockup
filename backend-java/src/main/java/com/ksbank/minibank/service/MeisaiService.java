@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import com.ksbank.minibank.codec.Fields;
-import com.ksbank.minibank.codec.ZonedDecimalCodec;
 import com.ksbank.minibank.config.GlobalExceptionHandler.BusinessException;
 import com.ksbank.minibank.domain.AccountDetail;
 import com.ksbank.minibank.domain.TxnRow;
@@ -31,25 +29,26 @@ public class MeisaiService {
 
     public Map<String, Object> list(String kouza, String kbnFilter, String from, String to) {
         String kz = digits7(kouza);
-        AccountDetail acc = accounts.findDetail(ZonedDecimalCodec.encode(kz))
+        int kzNo = Integer.parseInt(kz);
+        AccountDetail acc = accounts.findDetail(kzNo)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "kouza_not_found"));
-        long current = Fields.amount(acc.zandaka());
+        long current = acc.zandaka();
 
-        List<TxnRow> asc = txns.findByKouza(ZonedDecimalCodec.encode(kz)); // 시간 오름차순
+        List<TxnRow> asc = txns.findByKouza(kzNo); // 시간 오름차순
         int n = asc.size();
 
-        // 디코드 + 부호합계
+        // 부호합계
         String[] dt = new String[n], kbn = new String[n], memo = new String[n];
         long[] kingaku = new long[n], aite = new long[n], delta = new long[n];
         long sum = 0;
         for (int i = 0; i < n; i++) {
             TxnRow r = asc.get(i);
-            dt[i] = Fields.text(r.dt());             // 14자리 YYYYMMDDHHMMSS
-            kbn[i] = Fields.text(r.kbn());           // "1"/"2"/"3"
-            kingaku[i] = Fields.amount(r.kingaku());
-            long tes = Fields.amount(r.tesuryo());
-            aite[i] = Fields.zonedNum(r.aite());
-            memo[i] = Fields.text(r.tekiyou());      // 온라인분 NULL → ""
+            dt[i] = nz(r.dt());              // 14자리 YYYYMMDDHHMMSS
+            kbn[i] = nz(r.kbn());            // "1"/"2"/"3"
+            kingaku[i] = r.kingaku();
+            long tes = r.tesuryo();
+            aite[i] = r.aite();
+            memo[i] = nz(r.tekiyou());       // 온라인분 NULL → ""
             delta[i] = delta(kbn[i], kingaku[i], tes);
             sum += delta[i];
         }
@@ -94,6 +93,8 @@ public class MeisaiService {
             default -> 0;
         };
     }
+
+    private static String nz(String s) { return s == null ? "" : s; }
 
     private static String normalizeKbn(String k) {
         if (k == null || k.isBlank() || "all".equalsIgnoreCase(k.trim())) return "A";

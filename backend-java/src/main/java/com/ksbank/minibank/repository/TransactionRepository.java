@@ -33,17 +33,17 @@ public class TransactionRepository {
         VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
         """;
 
-    /** 거래 1행 기록(RAW 바이트). aite/tesuryo 는 nullable. */
-    public void insert(byte[] torihikiId, byte[] kouzaNo, byte[] dt, byte[] kbn,
-                       byte[] kingaku, byte[] aiteKouza, byte[] tesuryo) {
+    /** 거래 1행 기록. aite/tesuryo 는 nullable. */
+    public void insert(long torihikiId, int kouzaNo, String dt, String kbn,
+                       long kingaku, Integer aiteKouza, Integer tesuryo) {
         jdbc.update(INSERT_SQL, ps -> {
-            ps.setBytes(1, torihikiId);
-            ps.setBytes(2, kouzaNo);
-            ps.setBytes(3, dt);
-            ps.setBytes(4, kbn);
-            ps.setBytes(5, kingaku);
-            if (aiteKouza != null) ps.setBytes(6, aiteKouza); else ps.setNull(6, Types.BINARY);
-            if (tesuryo != null)   ps.setBytes(7, tesuryo);   else ps.setNull(7, Types.BINARY);
+            ps.setLong(1, torihikiId);
+            ps.setInt(2, kouzaNo);
+            ps.setString(3, dt);
+            ps.setString(4, kbn);
+            ps.setLong(5, kingaku);
+            if (aiteKouza != null) ps.setInt(6, aiteKouza); else ps.setNull(6, Types.INTEGER);
+            if (tesuryo != null)   ps.setInt(7, tesuryo);   else ps.setNull(7, Types.INTEGER);
         });
     }
 
@@ -55,10 +55,10 @@ public class TransactionRepository {
         """;
 
     /** 계좌의 전체 거래를 시간 오름차순으로(명세 계산용). */
-    public List<TxnRow> findByKouza(byte[] kouzaNo) {
+    public List<TxnRow> findByKouza(int kouzaNo) {
         return jdbc.query(BY_KOUZA_SQL,
-            ps -> ps.setBytes(1, kouzaNo),
-            (rs, i) -> new TxnRow(rs.getBytes(1), rs.getBytes(2), rs.getBytes(3),
-                                  rs.getBytes(4), rs.getBytes(5), rs.getBytes(6)));
+            ps -> ps.setInt(1, kouzaNo),
+            (rs, i) -> new TxnRow(rs.getString(1), rs.getString(2), rs.getLong(3),
+                                  rs.getLong(4), rs.getString(5), rs.getLong(6)));
     }
 }

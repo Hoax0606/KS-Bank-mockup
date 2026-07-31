@@ -1,8 +1,7 @@
       *>****************************************************************
       *> ZANDABAT  -  日次残高一覧 (全口座)
-      *>   KOUZA(RAW)を口座番号順に読み、口座番号(存10進)・種別・状態・
-      *>   残高(COMP-3)を復号して ZANDAKA.RPT に一覧出力する。
-      *>   復号は純 COBOL コーデック(DEC-KEY / DEC-P11)のみ。
+      *>   KOUZA を口座番号順に読み、口座番号・種別・状態・残高を
+      *>   ZANDAKA.RPT に一覧出力する(通常型直接バインド)。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. ZANDABAT.
@@ -33,19 +32,17 @@
            05 FILLER   PIC X(7) VALUE "TOTAL  ".
            05 FILLER   PIC X(4) VALUE "BAL=".
            05 L-TB     PIC 9(15).
-       COPY WPACK.
        COPY WDB.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
-       01  HV-KZ-HX    PIC X(14).
-       01  HV-SHU-HX   PIC X(2).
-       01  HV-JOU-HX   PIC X(2).
-       01  HV-ZAN-HX   PIC X(12).
+       01  HV-KZ       PIC 9(7).
+       01  HV-SHU      PIC X(1).
+       01  HV-JOU      PIC X(1).
+       01  HV-ZAN      PIC S9(11).
        01  IND-ZAN     PIC S9(4) COMP.
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-ZD CURSOR FOR
-             SELECT RAWTOHEX(KOUZA_NO), RAWTOHEX(SHUBETSU),
-                    RAWTOHEX(JOUTAI), RAWTOHEX(ZANDAKA)
+             SELECT KOUZA_NO, SHUBETSU, JOUTAI, ZANDAKA
                FROM KOUZA
               ORDER BY KOUZA_NO
        END-EXEC.
@@ -64,8 +61,8 @@
            EXEC SQL OPEN C-ZD END-EXEC
            PERFORM UNTIL SQLCODE NOT = 0
                EXEC SQL
-                   FETCH C-ZD INTO :HV-KZ-HX, :HV-SHU-HX,
-                        :HV-JOU-HX, :HV-ZAN-HX:IND-ZAN
+                   FETCH C-ZD INTO :HV-KZ, :HV-SHU,
+                        :HV-JOU, :HV-ZAN:IND-ZAN
                END-EXEC
                IF SQLCODE = 0
                    PERFORM EMIT
@@ -80,22 +77,16 @@
                    T-BAL UPON SYSERR
            STOP RUN.
        EMIT.
-           MOVE HV-KZ-HX TO KY-HEX(1:14)
-           MOVE 7 TO KY-N
-           PERFORM DEC-KEY
-           MOVE KY-STR(1:7) TO L-ACCT
-           MOVE HV-SHU-HX(2:1) TO L-SHU
-           MOVE HV-JOU-HX(2:1) TO L-JOU
+           MOVE HV-KZ  TO L-ACCT
+           MOVE HV-SHU TO L-SHU
+           MOVE HV-JOU TO L-JOU
            IF IND-ZAN < 0
                MOVE 0 TO L-BAL
            ELSE
-               MOVE HV-ZAN-HX TO PK-HEX(1:12)
-               PERFORM DEC-P11
-               MOVE PK-P11 TO L-BAL
-               ADD PK-P11 TO T-BAL
+               MOVE HV-ZAN TO L-BAL
+               ADD HV-ZAN TO T-BAL
            END-IF
            WRITE REP-REC FROM L-DTL
            ADD 1 TO N-OUT.
-       COPY PPACK.
        COPY PDBCONB.
        END PROGRAM ZANDABAT.

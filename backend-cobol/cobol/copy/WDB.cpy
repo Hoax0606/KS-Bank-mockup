@@ -1,10 +1,10 @@
       *>****************************************************************
       *> WDB.cpy  -  GixSQL DB 接続用ホスト変数 + SQLCA
-      *>   接続情報は環境変数から取得(Docker/NLS_LANG と併せる)。
-      *>     ORA_CONN = //oracle:1521/FREEPDB1 形式
+      *>   接続情報は環境変数から取得。
+      *>     ORA_CONN = oracle://oracle:1521/FREEPDB1 形式
       *>     ORA_USER / ORA_PASS
-      *>   ※ NLS_LANG は .._.AL32UTF8 ではなく RAW無変換通過が要点(§2)。
-      *>     日本語列は RAW のため文字集合変換を受けない。
+      *>   ※ DB는 JA16SJIS 저장이나 GixSQL 드라이버가 UTF-8로 강제 변환하여
+      *>     일본어 열은 UTF-8 바이트로 취득된다(NLS_LANG 무시).
       *>****************************************************************
        01  DBCONN.
            05  DB-CONN   PIC X(128).

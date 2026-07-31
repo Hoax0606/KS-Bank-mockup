@@ -30,7 +30,8 @@ GIXFLAGS := -e -S -z c -I $(COPY) -I $(GIXHOME)/share/gixsql/copy
 COBFLAGS := -I $(COPY) -I $(GIXHOME)/share/gixsql/copy -L $(GIXHOME)/lib -lgixsql
 
 # 共通サブモジュール(.so)。CGI/バッチから動的 CALL される。
-MODS := CGIINIT CGIPARM CGIRESP EBCDIG RAWUTF8
+# (EBCDIG/RAWUTF8 등 코덱 모듈은 Shift-JIS 전환으로 폐지)
+MODS := CGIINIT CGIPARM CGIRESP
 # SQL を含む CGI メイン
 CGI_SQL := ZANDAKA FURIKOMI MEISAI \
            LOGIN SIGNUP LOAN REPAY NOTICE HOLDINGS

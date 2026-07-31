@@ -25,14 +25,13 @@
            05 L-C      PIC 9(7).
            05 FILLER   PIC X(7) VALUE " TOTAL=".
            05 L-S      PIC 9(13).
-       COPY WPACK.
        COPY WDB.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
-       01  HV-TES-HX   PIC X(6).
+       01  HV-TES      PIC S9(5).
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-TS CURSOR FOR
-             SELECT RAWTOHEX(TESURYO)
+             SELECT TESURYO
                FROM TORIHIKI
               WHERE TESURYO IS NOT NULL
        END-EXEC.
@@ -50,12 +49,10 @@
            OPEN OUTPUT F-OUT
            EXEC SQL OPEN C-TS END-EXEC
            PERFORM UNTIL SQLCODE NOT = 0
-               EXEC SQL FETCH C-TS INTO :HV-TES-HX END-EXEC
+               EXEC SQL FETCH C-TS INTO :HV-TES END-EXEC
                IF SQLCODE = 0
                    ADD 1 TO T-CNT
-                   MOVE HV-TES-HX TO PK-HEX(1:6)
-                   PERFORM DEC-P5
-                   ADD PK-P5 TO T-SUM
+                   ADD HV-TES TO T-SUM
                END-IF
            END-PERFORM
            EXEC SQL CLOSE C-TS END-EXEC
@@ -67,6 +64,5 @@
            DISPLAY "[TESUBAT] fee count=" T-CNT " total=" T-SUM
                    UPON SYSERR
            STOP RUN.
-       COPY PPACK.
        COPY PDBCONB.
        END PROGRAM TESUBAT.

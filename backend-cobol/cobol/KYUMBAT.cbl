@@ -22,14 +22,13 @@
        01  L-DTL.
            05 FILLER   PIC X(9) VALUE "DORMANT= ".
            05 L-ACCT   PIC X(7).
-       COPY WPACK.
        COPY WDB.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
-       01  HV-KZ-HX    PIC X(14).
+       01  HV-KZ       PIC 9(7).
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-KY CURSOR FOR
-             SELECT RAWTOHEX(K.KOUZA_NO)
+             SELECT K.KOUZA_NO
                FROM KOUZA K
               WHERE NOT EXISTS
                 (SELECT 1 FROM TORIHIKI T
@@ -50,12 +49,9 @@
            OPEN OUTPUT F-OUT
            EXEC SQL OPEN C-KY END-EXEC
            PERFORM UNTIL SQLCODE NOT = 0
-               EXEC SQL FETCH C-KY INTO :HV-KZ-HX END-EXEC
+               EXEC SQL FETCH C-KY INTO :HV-KZ END-EXEC
                IF SQLCODE = 0
-                   MOVE HV-KZ-HX TO KY-HEX(1:14)
-                   MOVE 7 TO KY-N
-                   PERFORM DEC-KEY
-                   MOVE KY-STR(1:7) TO L-ACCT
+                   MOVE HV-KZ TO L-ACCT
                    WRITE REP-REC FROM L-DTL
                    ADD 1 TO N-OUT
                END-IF
@@ -65,6 +61,5 @@
            PERFORM DB-DISCONNECT
            DISPLAY "[KYUMBAT] dormant accounts=" N-OUT UPON SYSERR
            STOP RUN.
-       COPY PPACK.
        COPY PDBCONB.
        END PROGRAM KYUMBAT.

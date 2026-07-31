@@ -30,21 +30,18 @@
            05 L-DATE   PIC X(8).
            05 FILLER   PIC X(5) VALUE " BAL=".
            05 L-BAL    PIC 9(11).
-       COPY WPACK.
        COPY WDB.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
-       01  HV-KZ-HX    PIC X(14).
-       01  HV-SHU-HX   PIC X(2).
-       01  HV-JOU-HX   PIC X(2).
-       01  HV-KAI-HX   PIC X(16).
-       01  HV-ZAN-HX   PIC X(12).
+       01  HV-KZ       PIC 9(7).
+       01  HV-SHU      PIC X(1).
+       01  HV-JOU      PIC X(1).
+       01  HV-KAI      PIC X(8).
+       01  HV-ZAN      PIC S9(11).
        01  IND-ZAN     PIC S9(4) COMP.
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-MS CURSOR FOR
-             SELECT RAWTOHEX(KOUZA_NO), RAWTOHEX(SHUBETSU),
-                    RAWTOHEX(JOUTAI), RAWTOHEX(KAISETSU_BI),
-                    RAWTOHEX(ZANDAKA)
+             SELECT KOUZA_NO, SHUBETSU, JOUTAI, KAISETSU_BI, ZANDAKA
                FROM KOUZA
               ORDER BY KOUZA_NO
        END-EXEC.
@@ -63,8 +60,8 @@
            EXEC SQL OPEN C-MS END-EXEC
            PERFORM UNTIL SQLCODE NOT = 0
                EXEC SQL
-                   FETCH C-MS INTO :HV-KZ-HX, :HV-SHU-HX,
-                        :HV-JOU-HX, :HV-KAI-HX, :HV-ZAN-HX:IND-ZAN
+                   FETCH C-MS INTO :HV-KZ, :HV-SHU,
+                        :HV-JOU, :HV-KAI, :HV-ZAN:IND-ZAN
                END-EXEC
                IF SQLCODE = 0
                    PERFORM EMIT
@@ -76,25 +73,16 @@
            DISPLAY "[MASTBAT] listed " N-OUT " accounts" UPON SYSERR
            STOP RUN.
        EMIT.
-           MOVE HV-KZ-HX TO KY-HEX(1:14)
-           MOVE 7 TO KY-N
-           PERFORM DEC-KEY
-           MOVE KY-STR(1:7) TO L-ACCT
-           MOVE HV-SHU-HX(2:1) TO L-SHU
-           MOVE HV-JOU-HX(2:1) TO L-JOU
-           MOVE HV-KAI-HX TO KY-HEX(1:16)
-           MOVE 8 TO KY-N
-           PERFORM DEC-KEY
-           MOVE KY-STR(1:8) TO L-DATE
+           MOVE HV-KZ  TO L-ACCT
+           MOVE HV-SHU TO L-SHU
+           MOVE HV-JOU TO L-JOU
+           MOVE HV-KAI TO L-DATE
            IF IND-ZAN < 0
                MOVE 0 TO L-BAL
            ELSE
-               MOVE HV-ZAN-HX TO PK-HEX(1:12)
-               PERFORM DEC-P11
-               MOVE PK-P11 TO L-BAL
+               MOVE HV-ZAN TO L-BAL
            END-IF
            WRITE REP-REC FROM L-DTL
            ADD 1 TO N-OUT.
-       COPY PPACK.
        COPY PDBCONB.
        END PROGRAM MASTBAT.

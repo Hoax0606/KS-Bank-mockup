@@ -9,12 +9,14 @@
 
 일본 은행의 **인터넷뱅킹**을 흉내 낸 웹 데모입니다. 로그인해서 **잔액조회·이체·거래명세·대출/상환·공지·계좌개설**을 할 수 있어요.
 
-**진짜 핵심(자랑거리)**: 화면은 평범한 뱅킹 앱처럼 보이지만, 뒤에서는 **메인프레임 레거시 방식 그대로** 데이터를 저장합니다.
-- 일본어 명의 = 후지쯔 **JEF EBCDIC** 바이트
-- 금액 = **COMP-3(팩10진)**
-- 계좌번호 등 키 = **존10진 EBCDIC**
+**진짜 핵심(자랑거리)**: 화면은 평범한 뱅킹 앱처럼 보이지만, 뒤에서는 **메인프레임 관례에 맞춘 문자셋**으로 데이터를 저장합니다.
+- **COBOL 백엔드 → Oracle** = **JA16SJIS(Shift-JIS)** 문자셋 DB (일본어 명의가 디스크에 Shift-JIS 바이트로 저장)
+- **Java 백엔드 → PostgreSQL** = **UTF-8**
+- 앱/화면은 양쪽 다 UTF-8로 통신하지만, DB에 실제로 저장되는 문자셋은 위처럼 다릅니다.
 
-즉 "요즘 웹 화면"과 "메인프레임 원본 바이트"가 한 몸으로 돌아가는 걸 보여주는 게 이 데모의 포인트입니다. (같은 것을 **COBOL 백엔드**와 **Java 백엔드** 두 버전으로 구현)
+즉 "요즘 웹 화면"과 "메인프레임 문자셋(Shift-JIS)"이 한 몸으로 돌아가는 걸 보여주는 게 이 데모의 포인트입니다. (같은 것을 **COBOL 백엔드**와 **Java 백엔드** 두 버전으로 구현)
+
+> 📌 이전에는 전 컬럼을 메인프레임 바이트(RAW: JEF EBCDIC + COMP-3 + 존10진)로 저장했으나, 2026-07-30에 Oracle=Shift-JIS / PostgreSQL=UTF-8 정상 타입 구조로 마이그레이션했습니다.
 
 ---
 
@@ -90,14 +92,14 @@ docker compose -f backend-java/compose.java.yml up -d --build
 
 ## 4. "진짜 자랑거리" 보여주기 (기술 어필용, 선택)
 
-화면만 보면 평범하니, **DB를 열어서 원본이 메인프레임 바이트임**을 보여주면 임팩트가 큽니다.
+화면만 보면 평범하니, **두 DB의 문자셋이 다름**(Oracle=Shift-JIS / PostgreSQL=UTF-8)을 보여주면 임팩트가 있습니다.
 
 1. **DBeaver**(또는 아무 DB 툴)로 접속
-   - COBOL판: Oracle `<서버>:1521 / FREEPDB1`, 계정 `minibank / minibank`
-   - Java판: PostgreSQL `localhost:5433 / minibank`, 계정 `minibank / minibank`
-2. 원본 테이블 `KOUZA` 조회 → 명의·금액이 **사람이 못 읽는 바이트(RAW)** 로 저장돼 있음
-3. 디코드 뷰 `V_KOUZA` / `V_TORIHIKI` 조회 → 같은 데이터가 **사람이 읽는 값**(山田太郎 / 523400)으로 보임
-4. 설명: "화면엔 UTF-8로 보이지만 DB엔 메인프레임 원본 바이트로 저장되고, 조회 시 디코드합니다"
+   - COBOL판: Oracle `<서버>:1521 / FREEPDB1`, 계정 `minibank / minibank` (문자셋 JA16SJIS)
+   - Java판: PostgreSQL `localhost:5433 / minibank`, 계정 `minibank / minibank` (문자셋 UTF-8)
+2. `KOUZA` 테이블 조회 → 명의(山田太郎)·금액(523400)이 **정상 타입 컬럼**(VARCHAR2/NUMBER · varchar/bigint)에 읽는 값 그대로 저장돼 있음
+3. 설명: "화면·앱은 UTF-8로 통신하지만, Oracle DB는 디스크에 **Shift-JIS(JA16SJIS)** 로, PostgreSQL은 **UTF-8** 로 저장합니다. 드라이버가 문자셋 변환을 처리해 어느 쪽이든 일본어가 깨지지 않고 표시됩니다."
+   - (Oracle에서 실제 저장 바이트를 보고 싶으면 `SELECT DUMP(meigi_kanji) FROM kouza;` 로 Shift-JIS 바이트를 확인할 수 있음.)
 
 **야간배치 시연**(선택): Java판이면 아래 한 줄로 일일 배치(이자 가산·집계 리포트) 실행 결과를 볼 수 있습니다.
 ```bash

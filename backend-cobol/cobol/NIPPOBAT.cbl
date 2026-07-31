@@ -1,8 +1,8 @@
       *>****************************************************************
       *> NIPPOBAT  -  取引日報 (区分別 件数・金額 集計)
-      *>   TORIHIKI(RAW)を読み、TORIHIKI_KBN(1=入金/2=出金/3=振込)ごとの
+      *>   TORIHIKI を読み、TORIHIKI_KBN(1=入金/2=出金/3=振込)ごとの
       *>   件数と KINGAKU 合計を集計して NIPPO.RPT に出力する。
-      *>   金額は COMP-3 RAW を DEC-P11 で復号(純 COBOL, JEF サービス不要)。
+      *>   通常型直接バインド(RAWTOHEX/COMP-3コーデック廃止)。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. NIPPOBAT.
@@ -34,15 +34,14 @@
            05 L-C      PIC 9(7).
            05 FILLER   PIC X(6) VALUE " SUM=".
            05 L-S      PIC 9(15).
-       COPY WPACK.
        COPY WDB.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
-       01  HV-KBN-HX   PIC X(2).
-       01  HV-KIN-HX   PIC X(12).
+       01  HV-KBN      PIC X(1).
+       01  HV-KIN      PIC S9(11).
        EXEC SQL END DECLARE SECTION END-EXEC.
        EXEC SQL
            DECLARE C-NP CURSOR FOR
-             SELECT RAWTOHEX(TORIHIKI_KBN), RAWTOHEX(KINGAKU)
+             SELECT TORIHIKI_KBN, KINGAKU
                FROM TORIHIKI
        END-EXEC.
        PROCEDURE DIVISION.
@@ -60,7 +59,7 @@
            EXEC SQL OPEN C-NP END-EXEC
            PERFORM UNTIL SQLCODE NOT = 0
                EXEC SQL
-                   FETCH C-NP INTO :HV-KBN-HX, :HV-KIN-HX
+                   FETCH C-NP INTO :HV-KBN, :HV-KIN
                END-EXEC
                IF SQLCODE = 0
                    PERFORM ACCUM
@@ -85,10 +84,8 @@
                    " furikomi=" C3 UPON SYSERR
            STOP RUN.
        ACCUM.
-           MOVE HV-KBN-HX(2:1) TO W-KBN
-           MOVE HV-KIN-HX TO PK-HEX(1:12)
-           PERFORM DEC-P11
-           MOVE PK-P11 TO W-AMT
+           MOVE HV-KBN TO W-KBN
+           MOVE HV-KIN TO W-AMT
            EVALUATE W-KBN
              WHEN "1"
                ADD 1 TO C1
@@ -100,6 +97,5 @@
                ADD 1 TO C3
                ADD W-AMT TO S3
            END-EVALUATE.
-       COPY PPACK.
        COPY PDBCONB.
        END PROGRAM NIPPOBAT.

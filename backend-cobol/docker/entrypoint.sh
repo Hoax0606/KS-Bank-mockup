@@ -9,7 +9,8 @@ set -e
 : "${ORA_CONN:=oracle://oracle:1521/FREEPDB1}"
 : "${ORA_USER:=minibank}"
 : "${ORA_PASS:=minibank}"
-# RAW 無変換通過のための NLS。日本語列は RAW なので文字集合変換を受けない(§2)。
+# DB는 JA16SJIS 저장이나 GixSQL 드라이버가 취득 시 UTF-8로 강제 변환한다
+# (NLS_LANG는 실질 무시됨). 응답은 UTF-8.
 : "${NLS_LANG:=AMERICAN_AMERICA.AL32UTF8}"
 
 export ORA_CONN ORA_USER ORA_PASS NLS_LANG
@@ -25,12 +26,7 @@ until nc -z oracle 1521 2>/dev/null || [ $i -ge 60 ]; do
   echo "[entrypoint] waiting for oracle:1521 ..."; sleep 3; i=$((i+1));
 done
 
-# JEF 変換サービス(JEF4J)を起動し、127.0.0.1:$JEF_PORT で待受(CGI が C ブリッジ経由で利用)
-export JEF_PORT=9099
-( cd /app/jef && java -cp .:jef4j.jar JefServer "$JEF_PORT" >/tmp/jef.log 2>&1 & )
-j=0
-until nc -z 127.0.0.1 "$JEF_PORT" 2>/dev/null || [ $j -ge 40 ]; do sleep 0.5; j=$((j+1)); done
-echo "[entrypoint] JEF service ready on 127.0.0.1:$JEF_PORT"
+# (JEF 変換サービ스는 Shift-JIS 전환으로 폐지 — 더 이상 기동하지 않음)
 
 # fcgiwrap を UNIX ソケットで起動(ORA_* を継承させる)
 rm -f /run/fcgiwrap.sock

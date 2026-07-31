@@ -1,9 +1,9 @@
       *>****************************************************************
-      *> MKDAT  -  当日取引抽出 (オプション1: 実データ)
-      *>   DB の TORIHIKI(RAW)を読み、97byte固定 EBCDIC の TORIHIKI.DAT を
-      *>   生成する。TORIHIKI 各列は既に EBCDIC/COMP-3/存10進 RAW なので、
-      *>   バイトをそのままレコード位置へ配置(口座番号は 7->10 桁に 0xF0 パディング)。
-      *>   バッチ(YAKANBAT)の入力。オンライン発生の実取引がそのまま流れる。
+      *> MKDAT  -  当日取引抽出 (通常型/Shift-JIS DB版)
+      *>   DB の TORIHIKI を読み、97byte固定 ネイティブの TORIHIKI.DAT を
+      *>   生成する。各列を通常型のホスト変数で受け取り、レコード項目へ
+      *>   そのまま MOVE(数字=ASCII表示, 金額=COMP-3, 摘要=UTF-8)。
+      *>   口座番号は 7->10 桁へ前ゼロ埋め(PIC 9(10))。YAKANBAT の入力。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. MKDAT.
@@ -20,16 +20,15 @@
        01  OUT-PATH   PIC X(256).
        01  FS         PIC X(2).
        01  N-OUT      PIC 9(6) VALUE 0.
-       01  PAD3       PIC X(3) VALUE X'F0F0F0'.
        COPY WDB.
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
-       01  HV-ID      PIC X(12).
-       01  HV-KZ      PIC X(7).
+       01  HV-ID      PIC 9(12).
+       01  HV-KZ      PIC 9(7).
        01  HV-DT      PIC X(14).
        01  HV-KBN     PIC X(1).
-       01  HV-KIN     PIC X(6).
-       01  HV-AITE    PIC X(7).
-       01  HV-TES     PIC X(3).
+       01  HV-KIN     PIC S9(11).
+       01  HV-AITE    PIC 9(7).
+       01  HV-TES     PIC S9(5).
        01  HV-TEK     PIC X(40).
        01  IND-AITE   PIC S9(4) COMP.
        01  IND-TES    PIC S9(4) COMP.
@@ -69,22 +68,21 @@
                    UPON SYSERR
            STOP RUN.
        BUILD-REC.
-           MOVE ALL X'40' TO TR-DAT-REC
-           MOVE HV-ID  TO TR-DAT-REC(1:12)
-           MOVE PAD3   TO TR-DAT-REC(13:3)
-           MOVE HV-KZ  TO TR-DAT-REC(16:7)
-           MOVE HV-DT  TO TR-DAT-REC(23:14)
-           MOVE HV-KBN TO TR-DAT-REC(37:1)
-           MOVE HV-KIN TO TR-DAT-REC(38:6)
+           INITIALIZE TR-DAT-REC
+           MOVE HV-ID  TO TD-ID
+           MOVE HV-KZ  TO TD-KOUZA-NO
+           MOVE HV-DT  TO TD-NICHIJI
+           MOVE HV-KBN TO TD-KBN
+           MOVE HV-KIN TO TD-KINGAKU
+           MOVE SPACES TO TD-EXT
            IF IND-AITE >= 0
-               MOVE PAD3    TO TR-DAT-REC(44:3)
-               MOVE HV-AITE TO TR-DAT-REC(47:7)
+               MOVE HV-AITE TO TD-AITE-KOUZA
            END-IF
            IF IND-TES >= 0
-               MOVE HV-TES TO TR-DAT-REC(54:3)
+               MOVE HV-TES TO TD-TESURYO
            END-IF
            IF IND-TEK >= 0
-               MOVE HV-TEK TO TR-DAT-REC(58:40)
+               MOVE HV-TEK TO TD-TEKIYOU
            END-IF.
        COPY PDBCONB.
        END PROGRAM MKDAT.

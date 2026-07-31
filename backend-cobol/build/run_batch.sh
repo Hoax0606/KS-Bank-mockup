@@ -35,9 +35,9 @@ echo "[batch] (2/10) SORTDAT  -> TORIHIKI.SORTED (口座番号順)"
 "$BIN/SORTDAT"
 echo "[batch] (3/10) YAKANBAT (反映 + KOUZA 更新 + REPORT.WORK)"
 "$BIN/YAKANBAT"
-echo "[batch] (4/10) SORTRPT  -> $RPT_OUT (名義カナ EBCDIC 順, 58byte固定)"
+echo "[batch] (4/10) SORTRPT  -> $RPT_OUT (名義カナ順, 98byte固定/ネイティブ)"
 "$BIN/SORTRPT"
-echo "[batch] core done. meisai records: $(( $(wc -c < "$RPT_OUT") / 58 )) x 58byte"
+echo "[batch] core done. meisai records: $(( $(wc -c < "$RPT_OUT") / 98 )) x 98byte"
 
 # ---- 日次帳票(読取専用) ----
 echo "[batch] (5/10) NIPPOBAT -> $NIPPO_OUT (取引日報: 区分別集計)"

@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import com.ksbank.minibank.codec.Enc;
 import com.ksbank.minibank.config.GlobalExceptionHandler.BusinessException;
 import com.ksbank.minibank.repository.AccountRepository;
 import org.springframework.http.HttpStatus;
@@ -36,13 +35,12 @@ public class SignupService {
         String shubetsu = type.startsWith("当") ? "2" : "1";
 
         long no = accounts.nextKouzaDyn();
+        int kzNo = (int) no;
         String kz = String.format("%07d", no);
         String kaisetsu = LocalDate.now().format(YMD);
 
-        accounts.insertKouza(Enc.key(kz), Enc.jef(kanji, 20), Enc.jef(kana, 20),
-            Enc.key(shubetsu), Enc.amount(0), Enc.key(kaisetsu), Enc.key("0"));
-        accounts.insertKouzaExt(Enc.key(kz), Enc.key(branch), Enc.jef(type), Enc.jef(pw),
-            Enc.jef("N"), kanji, kana);
+        accounts.insertKouza(kzNo, kanji, kana, shubetsu, 0, kaisetsu, "0");
+        accounts.insertKouzaExt(kzNo, branch, type, pw, "N");
 
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("ok", true);
