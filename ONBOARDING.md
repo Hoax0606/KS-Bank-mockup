@@ -9,15 +9,16 @@
 
 일본 은행 **인터넷뱅킹**을 흉내 낸 웹 데모. 로그인·잔액·이체·명세·대출/상환·공지·개설 기능.
 
-**핵심 철학 (반드시 이해)**: 화면은 평범한 뱅킹 앱이지만, DB에는 **메인프레임 레거시 바이트 원본** 그대로 저장한다.
-- 텍스트(일본어 명의 등) = 후지쯔 **JEF EBCDIC**
-- 금액 = **COMP-3(팩10진)**
-- 키(계좌번호 등) = **존10진 EBCDIC**
-- 저장은 RAW 바이트, 화면/조회 시 디코드. **이게 프로젝트의 존재 이유다. "이상해 보인다"고 일반 타입으로 바꾸면 안 됨.**
+**핵심 철학 (반드시 이해)**: 화면은 평범한 뱅킹 앱이고, DB는 **정상 타입 컬럼**으로 저장하되 문자셋을 메인프레임 관례에 맞춰 이원화한다 (사장님 지시: **Oracle = Shift-JIS, PostgreSQL = UTF-8**).
+- **Oracle(COBOL)** = **JA16SJIS(Shift-JIS) 문자셋 DB**. 키·금액 = `NUMBER`, 일본어 텍스트 = `VARCHAR2`(디스크에 Shift-JIS 바이트), 코드·일자 = `CHAR`.
+- **PostgreSQL(Java)** = **UTF-8**. 키·금액 = `integer/bigint/numeric`, 일본어 텍스트 = UTF-8 `varchar`.
+- 앱/HTTP/프론트는 전부 **UTF-8**. (COBOL측은 GixSQL/OCI 드라이버가 클라이언트 문자셋을 UTF-8로 강제 → DB는 Shift-JIS 저장, 앱은 UTF-8 수신.)
+
+> ⚠️ **2026-07-30 마이그레이션 완료.** 이전에는 전 컬럼을 메인프레임 바이트(RAW)로 저장하고(JEF EBCDIC 텍스트 + COMP-3 금액 + 존10진 키), 앱측 코덱으로 왕복했습니다. 그 RAW/코덱 설계는 **전부 제거**되었습니다. 지금은 위의 정상 타입 구조이니, DB 컬럼은 정상 값(山田太郎 / 523400 등)으로 그대로 보이는 게 정상입니다.
 
 **두 개의 백엔드** (프론트는 공용):
-- `backend-cobol/` — **정본**. GnuCOBOL + Oracle. 사내 서버에 **라이브 구동 중**.
-- `backend-java/` — COBOL을 Spring Boot + PostgreSQL로 이식(온라인 9종 + 배치 완료). **아직 서버 배포 안 함(로컬만)**.
+- `backend-cobol/` — **정본**. GnuCOBOL + Oracle(JA16SJIS). 사내 서버에 **라이브 구동 중**.
+- `backend-java/` — COBOL을 Spring Boot + PostgreSQL(UTF-8)로 이식(온라인 9종 + 배치 완료). **아직 서버 배포 안 함(로컬만)**.
 
 ---
 
@@ -40,8 +41,8 @@
 | 경로 | 내용 |
 |------|------|
 | `frontend/` | 공용 SPA (바닐라 JS). `/api/...` 호출 |
-| `backend-cobol/` | **정본 백엔드**: `cobol/`(+`JEFCONV.c`), `cobol/copy/`(코덱 카피북), `jef/`(jef4j), `sql/`, `docker/`, `build/` |
-| `backend-java/` | Java 이식: `src/main/java/com/ksbank/minibank/`(web/service/repository/codec/domain/batch), `resources/db/`(schema·seed), `resources/static/`(프론트), `DESIGN.md` |
+| `backend-cobol/` | **정본 백엔드**: `cobol/`, `cobol/copy/`(카피북), `sql/`(JA16SJIS DDL·시드), `docker/`(`Dockerfile.asis` + `Dockerfile.oracle-sjis` + `oracle-sjis/`), `build/` |
+| `backend-java/` | Java 이식: `src/main/java/com/ksbank/minibank/`(web/service/repository/domain/batch), `resources/db/`(schema·seed, UTF-8), `resources/static/`(프론트), `DESIGN.md` |
 | `db/` | 참조용 UTF-8 스키마(ASIS와 별개, 보존만) |
 | `README.md` / `DEMO.md` / `backend-cobol/README.md` / `backend-java/DESIGN.md` | 문서 |
 
@@ -74,8 +75,8 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 | **COBOL** (라이브 서버) | `http://<서버주소>:8090/` | `<서버주소>:8090/api/...` | Oracle `<서버주소>:1521/FREEPDB1` (minibank/minibank) |
 
 - **포트 분리**: 8080=COBOL 화면 · 8081=Java 화면 · 1521=Oracle · 5433=PostgreSQL (서로 안 겹침, 동시에 켜도 됨)
-- 두 백엔드는 **서로 다른 DB**를 봄(COBOL→Oracle, Java→PostgreSQL) → 한쪽에서 이체해도 다른 쪽엔 반영 안 됨(정상)
-- 화면·기능·로그인 계정은 두 백엔드 동일. DB는 원본=RAW, 조회는 `V_*` 뷰(§5)
+- 두 백엔드는 **서로 다른 DB**를 봄(COBOL→Oracle JA16SJIS, Java→PostgreSQL UTF-8) → 한쪽에서 이체해도 다른 쪽엔 반영 안 됨(정상)
+- 화면·기능·로그인 계정은 두 백엔드 동일. DB 컬럼은 **정상 타입**이라 일본어가 읽는 값 그대로 표시됨(디코드 뷰 불필요, §5)
 
 ---
 
@@ -106,20 +107,18 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 ### DB 직접 조회 (DBeaver 등)
 
-> 원본 테이블은 **RAW 바이트(bytea/RAW)** 라 사람이 못 읽습니다. 사람이 읽으려면 **디코드 뷰 `V_*`** 를 보세요.
+> 컬럼이 **정상 타입**(NUMBER/VARCHAR2/CHAR · integer/varchar/bigint)이라 일본어가 **읽는 값 그대로** 보입니다. 디코드 뷰·함수 없음.
 
-| 대상 | Type | Host | Port | DB/Service | 계정 |
-|------|------|------|------|-----------|------|
-| COBOL판 (라이브 서버) | Oracle | `<서버주소>` | `1521` | `FREEPDB1` | `minibank` / `minibank` |
-| Java판 (로컬 compose) | PostgreSQL | `localhost` | **`5433`** ⚠️ | `minibank` | `minibank` / `minibank` |
+| 대상 | Type | Host | Port | DB/Service | 계정 | 문자셋 |
+|------|------|------|------|-----------|------|--------|
+| COBOL판 (라이브 서버) | Oracle | `<서버주소>` | `1521` | `FREEPDB1` | `minibank` / `minibank` | JA16SJIS |
+| Java판 (로컬 compose) | PostgreSQL | `localhost` | **`5433`** ⚠️ | `minibank` | `minibank` / `minibank` | UTF-8 |
 
-- ⚠️ Java판 포트는 **5433**. 호스트에 native PostgreSQL(5432)이 있으면 겹치므로 compose는 5433으로 공개.
-- 볼 것: 원본 테이블 `KOUZA`/`TORIHIKI`(RAW) ↔ 디코드 뷰 `V_KOUZA`/`V_TORIHIKI`/`V_LOAN`/`V_REPAY`/`V_NOTICE`.
+- **Oracle(Shift-JIS)**: 컬럼은 NUMBER/VARCHAR2/CHAR. 일본어는 RAW hex가 아니라 읽는 텍스트로 표시(JDBC 드라이버가 JA16SJIS→클라이언트 변환). 로컬 standalone 테스트 컨테이너는 호스트 포트 1522, `compose.asis.yml`의 `oracle` 서비스는 1521.
+- **PostgreSQL(UTF-8)**: 컬럼은 integer/varchar/bigint, 일본어는 평문 UTF-8. ⚠️ 포트 **5433**(호스트 native PG 5432과 겹침 방지). 옛 DBeaver 연결이 아직 `bytea`로 보이면 캐시된 메타데이터이니 **재접속 + 새로고침**.
   ```sql
-  SELECT * FROM v_kouza ORDER BY kouza_no;        -- 사람이 읽는 값
-  SELECT encode(meigi_kanji,'hex') FROM kouza;    -- (PG) 원본 RAW 바이트 확인
+  SELECT * FROM kouza ORDER BY kouza_no;   -- 사람이 읽는 값 그대로 (양쪽 DB 동일)
   ```
-- 디코드 함수: `FN_UNZONE`(키)·`FN_UNPACK`(금액)·`FN_EBC`(단바이트 EBCDIC, PG는 미보강). 일본어(JEF)는 DB만으론 디코드 불가 → `V_KOUZA` 명의는 UTF-8 미러 사용.
 
 ---
 
@@ -127,8 +126,8 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 - **COBOL 정본**: 온라인 CGI 9 + 배치 10 (`backend-cobol/README.md` 상단 "현재 구현 현황" + §5 배치).
 - **Java 이식 현황**: 온라인 **9/9 완료** + 배치 완료(`/api/batch/run`). 기능 파리티 달성. 상세·로드맵은 `backend-java/DESIGN.md`.
-- **Java 남은 것(운영화)**: 서버 배포(`compose.java.yml`로), 인증/PW 해시, 프로필 컬럼 확장, PG `fn_ebc`(단바이트 EBCDIC) 디코드 뷰 보강.
-- **개발 패턴(Java)**: `web(REST) → service(codec 인코/디코 + @Transactional) → repository(JdbcTemplate, bytea는 명시적 setBytes/getBytes, null은 setNull(Types.BINARY))`. 인코드=`codec/Enc`, 디코드=`codec/Fields`.
+- **Java 남은 것(운영화)**: 서버 배포(`compose.java.yml`로), 인증/PW 해시, 프로필 컬럼 확장.
+- **개발 패턴(Java)**: `web(REST) → service(@Transactional) → repository(JdbcTemplate, 정상 타입 컬럼 직접 바인딩)`. 컬럼이 모두 정상 타입(integer/bigint/numeric/varchar/char/date, 일본어=UTF-8)이라 별도 코덱 없이 값을 그대로 다룹니다. (구 `codec` 패키지는 제거됨.)
 
 ---
 
@@ -137,18 +136,18 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 이 프로젝트를 처음 만지는 사람이 반드시 밟는 지뢰들. 몰라서 삽질하지 않도록:
 
 **전반**
-- **RAW 철학**: DB 값이 사람이 못 읽는 바이트인 건 정상(설계). DBeaver로 볼 땐 디코드 뷰 `V_KOUZA`/`V_TORIHIKI`/`V_LOAN`/`V_REPAY`/`V_NOTICE` 사용. 함수 `FN_UNZONE`(키)·`FN_UNPACK`(금액)·`FN_EBC`(단바이트 EBCDIC).
-- 일본어(JEF)는 **DB만으로 디코드 불가** → `V_KOUZA` 명의는 `KOUZA_EXT.KANJI_UTF8` 미러를 씀.
+- **문자셋 이원화**: Oracle=JA16SJIS(Shift-JIS), PostgreSQL=UTF-8. 컬럼은 양쪽 다 정상 타입이라 DBeaver에서 일본어가 읽는 값 그대로 보임(디코드 뷰·함수 없음). 예전 RAW/JEF/COMP-3/존10진 + `V_*`/`FN_*` 구조는 2026-07-30에 전부 제거됨 — 옛 스크립트/뷰를 찾지 말 것.
+- COBOL측은 GixSQL/OCI 드라이버가 클라이언트 문자셋을 UTF-8로 강제(Instant Client basiclite에 변환기 없음). 그래서 NLS_LANG과 무관하게 DB는 Shift-JIS 저장, 앱/HTTP는 UTF-8. VARCHAR2 등가비교는 `RTRIM(:hv)`로.
 
 **COBOL 빌드/배포**
 - `gixpp`(EXEC SQL 프리컴파일) 함정: SORT 못 다룸 → `SORTDAT/SORTRPT` 별 프로세스. 코덱 카피북은 **한 줄에 한 문장**(마침표 72칸 넘으면 무시됨). COPY는 `expand_copy.sh`로 평탄화 후 넘김. 긴 EXEC SQL 줄은 72칸 초과 시 호스트변수명 잘림.
 - vendor(Oracle Instant Client·GixSQL)는 재배포 불가라 깃에 없음 → 직접 다운로드(`vendor/README.md`).
 - **sudo 함정**: 서버에서 `sudo docker build` 시 `~`가 `/root`로 잡힘 → 빌드 컨텍스트는 **절대경로**로.
-- **DDL/시드는 라이브 DB에서 재생성한 것**: 라이브 Oracle이 전 컬럼 RAW로 마이그레이션된 상태이고, `sql/01_ddl.sql`·`02_seed.sql`은 거기서 `DBMS_METADATA`로 추출한 정본. **스키마 바꾸면 라이브 DB → 재추출로 소스 갱신**(생성 스크립트는 안 남아있음).
+- **Oracle은 JA16SJIS 커스텀 이미지**: `docker/Dockerfile.oracle-sjis`(+`oracle-sjis/build-sjis-db.sh`·`mkuser.sql`)가 공식 Oracle Free 이미지에 `dbca -characterSet JA16SJIS`로 DB를 재생성하고 스키마+시드(`sql/01_ddl.sql`·`02_seed.sql`)를 빌드 시점에 구워 넣음(재기동 시 SAVE STATE 자동 오픈). 스키마 바꾸면 SQL 두 파일을 고치고 **이미지 재빌드**.
 
 **Java**
-- **Spring Boot fat jar에서 커스텀 charset(jef4j)이 SPI로 안 잡힘** → `Charset.forName("x-Fujitsu-JEF-EBCDIC")` 실패. `JefCodec`이 `Jef4jCharsetProvider`를 **직접 인스턴스화**해 우회함(이미 적용). 단위테스트는 통과하고 **jar 실행에서만 터지는** 부류라 주의.
 - **로컬 PostgreSQL(5432) 충돌**: 호스트에 네이티브 PG가 있으면 겹침 → `compose.java.yml`은 PG를 **5433**으로 공개(앱 8081). COBOL 로컬(8080/1521)과도 분리.
+- **charset 강제**: `application.yml`이 서블릿 인코딩을 UTF-8로 강제. 컬럼은 전부 정상 타입이라 예전 codec/jef4j 관련 함정(fat jar에서 커스텀 charset SPI 미탐지 등)은 더 이상 없음(해당 코드 삭제됨).
 
 ---
 
@@ -156,7 +155,7 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 - `README.md` — 전체 구조·실행·서버 운영(§4에 배치/재배포/초기화 명령)
 - `DEMO.md` — 처음 접속해 시연하는 법
-- `backend-cobol/README.md` — COBOL 정본(인코딩 현황·API 계약·배치 10스텝·검증)
+- `backend-cobol/README.md` — COBOL 정본(문자셋 현황·API 계약·배치 10스텝·검증)
 - `backend-java/DESIGN.md` — Java 이식 설계·로드맵·함정 체크리스트
 - `backend-cobol/docker/vendor/README.md` — vendor 다운로드
 
