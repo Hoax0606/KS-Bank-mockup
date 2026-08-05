@@ -1,7 +1,9 @@
 # backend-java 구성안 — COBOL 백엔드의 Java(Spring Boot) 이식
 
 COBOL(GnuCOBOL + GixSQL + Oracle) ASIS 백엔드를 **Spring Boot + PostgreSQL**로 재구현한 설계 문서.
-> ✅ 온라인 9종 + 배치 이식 완료. **2026-07-30 문자셋 정상화** 반영본.
+> ✅ 온라인 9종 이식 완료. **2026-07-30 문자셋 정상화** 반영본.
+> ✅ 배치 = posting + **明細(MEISAI)** + 帳票 6종, 파일 7종 출력.
+> **COBOL과 帳票 7종 값 1:1 일치 확인(`PARITY OK`, 2026-08-04 실측)** — 절차는 §8.
 > 이전엔 전 컬럼을 메인프레임 바이트(RAW/bytea) + 앱측 코덱으로 왕복했으나, 그 설계는 전부 제거됐다.
 
 ---
@@ -57,8 +59,8 @@ backend-java/
     repository/     # JdbcTemplate DAO (EXEC SQL 대체, int/long/String 직접 바인딩)
     domain/         # 엔티티/레코드 (KOUZA, TORIHIKI, LOAN ...)
     dto/            # 요청/응답 DTO (JSON 계약)
-    batch/          # 10개 배치 잡 (COBOL *BAT 대체)
-    batch/report/   # 고정길이/텍스트 리포트 라이터
+    batch/          # BatchService(오케스트레이션) + MeisaiBuilder(YAKANBAT) + KanaSortKey(SORTRPT)
+    batch/report/   # 리포트 렌더러 — JsonRenderer(API 응답) / ReportWriter(帳票 파일 7종)
   src/main/resources/
     application.yml # UTF-8 서블릿 인코딩 강제(아래 §3)
     db/schema.sql   # PostgreSQL DDL (정상 타입, UTF-8)
@@ -137,23 +139,28 @@ backend-java/
 
 ## 6. 배치 매핑 (10 → Java)
 
-`batch/` 아래 잡 클래스 10개. `run_batch.sh` → `BatchRunner`(CLI 인자 or 스케줄)로 순차 실행.
+`POST /api/batch/run` 한 번으로 10스텝 전체를 수행한다(구조: **compute → apply → render**).
+`BatchService.run()`이 계산하고, 결과 `BatchResult`를 `JsonRenderer`(API 응답)와
+`ReportWriter`(帳票 파일 7종)로 각각 렌더링한다.
 
-| # | COBOL | Java 잡 | 비고 |
-|---|-------|---------|------|
-| 1 | MKDAT | `ExtractTxnJob` | DB→중간표현(파일 불필요, 컬렉션으로 대체 가능) |
-| 2 | SORTDAT | *(제거)* | `ORDER BY`/Java `sort`로 흡수 |
-| 3 | YAKANBAT | `PostingJob` | control-break 이자계산·잔액갱신(普通만, `floor(잔액/365000)`) |
-| 4 | SORTRPT | *(제거)* | 정렬은 SQL/Java |
-| 5 | NIPPOBAT | `DailyTxnReportJob` | 구분별 집계 → NIPPO.RPT |
-| 6 | ZANDABAT | `BalanceListJob` | 잔액일람 |
-| 7 | TESUBAT | `FeeSummaryJob` | 수수료 집계 |
-| 8 | KYUMBAT | `DormantJob` | 무거래 계좌 |
-| 9 | MASTBAT | `MasterListJob` | 마스터 일람 |
-| 10 | TOKEBAT | `StatsJob` | 통계 |
+| # | COBOL | Java | 비고 |
+|---|-------|------|------|
+| 1 | MKDAT | `ReportRepository.allTxnsForBatch()` | **`ORDER BY kouza_no, torihiki_id`** — MKDAT과 동일. 온라인 `findByKouza`의 `(dt,id)`와 다르다(§10) |
+| 2 | SORTDAT | *(SQL `ORDER BY`로 흡수)* | GnuCOBOL SORT 크래시 회피용 껍데기였으므로 Java에선 불필요 |
+| 3 | YAKANBAT | `MeisaiBuilder` | control-break. 期首 역산 + 이자(`普通` && 잔액>0 → `floor(잔액/365000)`) + **明細 D/T 생성** |
+| 4 | SORTRPT | `KanaSortKey` | *제거가 아니라 재구현*. 名義カナ를 **UTF-8 60byte 패딩 후 unsigned 바이트** 비교 + `seq` 타이브레이크(`SW2-KANA SW2-SEQ`) |
+| 5 | NIPPOBAT | `BatchService.dailyTxnReport` | 구분별 집계 → JSON `nippo` / `NIPPO.RPT` |
+| 6 | ZANDABAT | `BatchService.balanceList` | 잔액일람 → `ZANDAKA.RPT` |
+| 7 | TESUBAT | `BatchService.feeSummary` | 수수료 집계(non-null 전건) → `TESURYO.RPT` |
+| 8 | KYUMBAT | `ReportRepository.dormantAccounts` | 무거래 계좌 → `KYUMIN.RPT` |
+| 9 | MASTBAT | `BatchService.masterList` | 마스터 일람 → `KOUZA.LST` |
+| 10 | TOKEBAT | `BatchService.stats` | 통계 → `TOKEI.RPT` |
 
-- **SORT 분리 프로세스(SORTDAT/SORTRPT)는 소멸** — GnuCOBOL SORT 크래시 회피용이었으므로 Java에선 불필요.
-- 리포트는 사람이 읽는 텍스트(UTF-8). 명세 명의 등 일본어도 평문으로 출력(구 고정길이 EBCDIC 원본 방식 폐기).
+- **파일 7종**은 `app.batch.output-dir`(기본 `./data`, compose에서 호스트로 마운트)에 출력된다.
+  6종은 COBOL 서식(자릿수·제로패딩·필러 공백)을 그대로 재현하므로 **파일 대 파일 `diff`가 성립**한다.
+- 明細만 `MEISAI.TXT`(텍스트)로 쓴다. COBOL은 `MEISAI.RPT`(98byte 고정 + COMP-3) 바이너리이므로
+  이름을 일부러 다르게 해 혼동을 피하고, 대조 시 `tools/parity/meisai_dump.py`가 COBOL 쪽을
+  같은 텍스트 포맷으로 변환한다. **98byte·COMP-3은 재도입하지 않는다**(§8 각주 — 바이트 동일성은 검증 범위 밖).
 
 ---
 
@@ -177,8 +184,58 @@ backend-java/
 ## 8. 검증
 
 - **문자셋**: 일본어(명의 `山田太郎` 등)가 UI 입력 → DB `varchar` → 조회/리포트까지 UTF-8 평문으로 왕복, 문자화けなし.
-- **기능 파리티(E2E 회귀)**: 로그인/이체(원자성·수수료)/명세/대출/상환/공지 + 10단계 배치 결과가 COBOL판과 업무적으로 일치.
 - **금액·키 정확도**: 잔액·수수료·이자 계산값, 채번 키의 자릿수/무결성이 정상 타입으로 유지되는지.
+
+### 배치 파리티 — 기계 검증 절차
+
+"업무적으로 일치"는 측정 불가하므로 **7개 帳票의 값을 `diff`로** 확인한다.
+
+```bash
+sh tools/parity/compare.sh      # → PARITY OK  또는 첫 불일치 지점의 diff
+```
+
+1. **픽스처 적용** — `backend-cobol/sql/90_parity_fixture.sql` / `backend-java/.../db/90_parity_fixture.sql`.
+   ⚠️ 온라인 이체로 데이터를 만들면 안 된다: `TORIHIKI_DT`가 삽입 시각(wall-clock)이고 그 값이
+   明細 D레코드(`MD-TORIHIKI-DT`)에 들어가므로 양쪽 dt가 어긋나 전 줄이 diff된다.
+   픽스처는 `TORIHIKI_ID`·`TORIHIKI_DT`를 **리터럴로 고정**한다.
+2. **양쪽 배치 실행** → 3. **정규화**(줄끝 공백 제거 + CRLF→LF, 明細은 COMP-3 디코드) → 4. **7개 diff**
+
+**교차검증**(하네스 자체의 버그를 잡는 용도, 전부 실측 확인됨):
+- `MEISAI.RPT` 바이트수 == `98 × 레코드수` (1372 = 98×14) — `compare.sh`가 자동 검사
+- `cmp TORIHIKI.DAT TORIHIKI.SORTED` **일치** → SORTDAT이 항등 순열임을 실증(§`backend-cobol/README.md` §5)
+- `ZANDAKA.RPT`의 `TOTAL BAL` == `TOKEI.RPT`의 `TOTAL BAL` (ZANDABAT/TOKEBAT 독립 코드경로)
+- 검산: `Σ배치후잔액(3,613,055) = Σ픽스처잔액(3,613,050) + Σ이자(5)`
+- 온라인 `/api/meisai` `afterBal`이 양쪽 동일. ⚠️ **배치 후**에 조회하면 期首를 이자 포함 잔액에서
+  역산하므로 배치 `zandakaGo`보다 이자만큼 커진다(양쪽 동일하게 시프트). 배치값과 직접 비교하려면
+  배치 **전에** 조회할 것.
+
+> ⚠️ **Windows 함정 2개** (`tools/parity/compare.sh` 에 대응 코드와 이유가 주석으로 있음)
+> 1. Git Bash(MSYS)는 `/app/build`·`/nolog` 같은 **단독 인수**를 Windows 경로로 변환해 docker/sqlplus를
+>    깨뜨린다(`sh -c '...'` 안에 넣은 경로는 안전). `MSYS_NO_PATHCONV=1`은 반대로 호스트 경로를 깨므로 금물.
+> 2. Windows 의 `python3` 은 Microsoft Store 앱 실행 별칭 스텁일 수 있다(실행하면 "Python" 한 줄만 출력).
+>    또 리다이렉트 시 로케일 인코딩·CRLF 로 쓰므로 **출력 UTF-8/LF 고정**이 필요하다.
+
+⚠️ **재실행 규율**: 배치는 `newBal = 현재잔액 + 이자`로 **멱등이 아니다**(처리済 플래그 없음).
+대조 전에 반드시 픽스처를 재적용한다. 대조 중 온라인 조작 금지 — COBOL 5-10은 별 프로세스라
+중간 거래를 보지만 Java는 단일 트랜잭션 스냅샷이라 보지 않는다.
+
+**단위 테스트**(DB·컨테이너 불필요): `MeisaiBuilderTest` / `KanaSortKeyTest` / `ReportWriterTest`.
+`MeisaiBuilder`가 순수 함수라 골든값으로 검증한다. `mvn test`
+(⚠️ `Dockerfile`은 `-DskipTests`이므로 이미지 빌드로는 테스트가 돌지 않는다).
+
+### 남는 정당한 차이 (일치 불가 — 문서화 대상)
+
+1. **`YAKANBAT`의 `TXR OCCURS 500 TIMES`** — 계좌당 501건째부터 상한 검사 없이 테이블 밖을 침범한다
+   (`APPLY-TXN`). Java엔 상한이 없다. 데모 규모 한계로 두고 Java를 500으로 맞추지는 않는다.
+2. **트랜잭션 경계** — COBOL은 계좌별 `COMMIT`, Java는 배치 전체 1트랜잭션. 성공 시 동일,
+   중간 실패 시 부분반영 vs 전체롤백. **파리티는 성공 실행에 한해** 주장한다.
+3. **수치 범위** — COBOL `S9(11)`/Oracle `NUMBER(11)` vs Java `long`/PG `bigint`. 데모 규모에선 도달 불가.
+4. **명의 용량** — Oracle `VARCHAR2(40)`은 JA16SJIS 하 *바이트* 의미(≤60byte), PG `varchar(40)`은
+   *문자* 의미(최대 120byte). `KanaSortKey`·`ReportWriter`가 COBOL의 60byte 절단을 모델링한다.
+5. **`accountsPosted` 의미** — Java는 이자>0 계좌수, COBOL엔 대응 카운터 없음(거래 있는 전 계좌 UPDATE).
+   `accountsUpdated`를 추가해 해소. 둘 다 JSON 요약이고 帳票 값이 아니라 대조 대상에서 제외된다.
+6. **양쪽 공통이나 업무 검토 필요** — 배치 재실행 시 이자 매회 가산, `JOUTAI='9'`(凍結) 계좌에도
+   이자 가산. 픽스처가 계좌 5001415로 이 동작을 의도적으로 고정하므로 한쪽만 "고치면" 대조가 잡아낸다.
 
 > 구 검증의 핵심이던 "코덱 바이트 동일성"(JEF/COMP-3/존10진 RAW 바이트 대조) 스파이크는 2026-07-30 정상화로 대상에서 빠졌다.
 > 이제 관점은 "정상 타입 값 정확도 + 일본어 UTF-8 왕복"이다.
@@ -187,14 +244,15 @@ backend-java/
 
 ## 9. 단계별 로드맵
 
-> 온라인 9종 + 배치는 이식 완료. 아래는 현재 구조 기준의 빌드 경로(정상화 후).
+> 온라인 9종 + 배치(明細 포함)는 이식 완료. 아래는 현재 구조 기준의 빌드 경로(정상화 후).
 
 1. **스캐폴딩**: Spring Boot + Maven + PG compose, `application.yml`(UTF-8 강제), DataSource.
 2. **스키마/시드**: `schema.sql`(정상 타입) + `seed.sql`(일본어 리터럴 + 숫자값 직접 INSERT).
 3. **온라인 수직 슬라이스 1개**: LOGIN 완주(웹→서비스→리포지토리→DB→응답)로 아키텍처 확정.
 4. **온라인 나머지 8**: 계약 유지하며 이식, 이체 원자성 집중 검증.
-5. **배치 8종(+posting)**: 잡 러너 + 리포트.
-6. **컷오버**: 프론트를 Java 오리진으로.
+5. **배치**: posting + 明細(D/T) + 帳票 6종 + 파일 7종 출력.
+6. **파리티 하네스**: `tools/parity/compare.sh` 로 COBOL 산출물과 7개 diff.
+7. **컷오버**: 프론트를 Java 오리진으로.
 
 > (남은 운영화: 서버 배포, 인증/PW 해시, 프로필 컬럼 확장 등 — `ONBOARDING.md` §6 참조.)
 
@@ -208,6 +266,13 @@ backend-java/
 - [ ] 이체 **원자성**: 실패 시 전체 롤백(잔액 불일치 0).
 - [ ] 이자: 普通(종별1)만 `floor(잔액/365000)`, 当座 무이자.
 - [ ] 배치 posting 이중 반영 금지(온라인이 이미 실시간 반영 — YAKANBAT은 이자만).
+- [ ] **明細 거래 순서 = `(kouza_no, torihiki_id)`** — `取引後残高`가 순서 의존이므로 온라인
+      `findByKouza`의 `(dt, id)`와 "통일"하면 COBOL 파리티가 조용히 깨진다.
+- [ ] **카나 정렬은 UTF-8 바이트 비교** — `String.compareTo`(UTF-16 코드유닛)나
+      `java.text.Collator`(로케일 조합)를 쓰면 안 된다. `Arrays.compareUnsigned` + 60byte 패딩.
+- [ ] **期首 = 現残高 − Σdelta 는 posting *이전* 잔액 기준** — 帳票 6종은 반대로 posting *이후* 잔액을 읽는다
+      (COBOL 5-10은 YAKANBAT COMMIT 뒤의 별 프로세스).
+- [ ] **明細의 `手数料合計`은 区分3만** 집계, `TESUBAT`은 non-null 전건 — 의도적으로 다른 집계다.
 - [ ] 일본어 폼 파라미터 디코드 — `application.yml`의 `server.servlet.encoding.force=true` 유지(끄면 폼 일본어 깨질 수 있음).
 - [ ] 채번 키 자릿수(계좌 7자리 등)·FK 무결성 유지.
 - [ ] 로컬 PG 포트 **5433**(호스트 native PG 5432 충돌 회피, `compose.java.yml`).

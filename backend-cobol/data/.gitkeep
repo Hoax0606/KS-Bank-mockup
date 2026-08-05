@@ -1,3 +1,11 @@
-# このディレクトリに MKDAT が TORIHIKI.DAT(97byte EBCDIC)を生成し、
-# YAKANBAT が MEISAI.RPT(58byte EBCDIC)を出力します。
-# 生成物(*.DAT / *.RPT)は現新比較ツールの入力(EBCDIC原本)です。
+# このディレクトリに夜間バッチの生成物が出力されます(README §5 の 10 ステップ)。
+#   TORIHIKI.DAT     MKDAT   当日取引 97byte固定・ネイティブ(ASCII数字 + COMP-3 + UTF-8)
+#   TORIHIKI.SORTED  SORTDAT 口座番号+取引ID 順
+#   REPORT.WORK      YAKANBAT 明細ワーク 164byte(カナ60 + SEQ6 + 本体98)
+#   MEISAI.RPT       SORTRPT 明細帳票 98byte固定(名義カナ昇順, 金額は COMP-3, テキストは UTF-8)
+#   NIPPO.RPT / ZANDAKA.RPT / TESURYO.RPT / KYUMIN.RPT / KOUZA.LST / TOKEI.RPT
+#                    日次帳票 6種 LINE SEQUENTIAL テキスト(UTF-8)
+#
+# ※ 旧 EBCDIC/JEF 表記は 2026-07-30 の文字セット正常化で失効しました。
+# ※ Java 版との 1:1 値対照は tools/parity/compare.sh を使ってください
+#    (MEISAI.RPT は COMP-3 なので tools/parity/meisai_dump.py でテキスト化します)。

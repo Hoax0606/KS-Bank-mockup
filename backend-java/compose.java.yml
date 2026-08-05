@@ -36,6 +36,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/minibank
       DB_USER: minibank
       DB_PASS: minibank
+      # COBOL 컨테이너(Dockerfile.asis)가 TZ=Asia/Tokyo 이므로 맞춘다.
+      # 안 맞추면 온라인 거래의 TORIHIKI_DT 가 양쪽에서 9시간 벌어진다.
+      TZ: Asia/Tokyo
     ports:
       - "8081:8080"
+    volumes:
+      # 야간배치 帳票 7종 산출물(app.batch.output-dir=./data → /app/data)
+      - ./data:/app/data
     restart: unless-stopped

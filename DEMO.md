@@ -101,9 +101,16 @@ docker compose -f backend-java/compose.java.yml up -d --build
 3. 설명: "화면·앱은 UTF-8로 통신하지만, Oracle DB는 디스크에 **Shift-JIS(JA16SJIS)** 로, PostgreSQL은 **UTF-8** 로 저장합니다. 드라이버가 문자셋 변환을 처리해 어느 쪽이든 일본어가 깨지지 않고 표시됩니다."
    - (Oracle에서 실제 저장 바이트를 보고 싶으면 `SELECT DUMP(meigi_kanji) FROM kouza;` 로 Shift-JIS 바이트를 확인할 수 있음.)
 
-**야간배치 시연**(선택): Java판이면 아래 한 줄로 일일 배치(이자 가산·집계 리포트) 실행 결과를 볼 수 있습니다.
+**야간배치 시연**(선택): Java판이면 아래 한 줄로 일일 배치(이자 가산·明細·집계 리포트) 실행 결과를 볼 수 있습니다.
 ```bash
 curl -X POST http://localhost:8081/api/batch/run
+ls backend-java/data/          # 帳票 7종 (MEISAI.TXT + NIPPO/ZANDAKA/TESURYO/KYUMIN/KOUZA.LST/TOKEI)
+cat backend-java/data/MEISAI.TXT   # 明細: D=거래별 取引後残高 / T=계좌별 利息·手数料合計·確定残高
+```
+
+**COBOL과 값이 같은지 보여주기**(선택): 두 스택을 다 띄운 상태에서
+```bash
+sh tools/parity/compare.sh     # => PARITY OK  (帳票 7종 diff 무차이)
 ```
 
 ---

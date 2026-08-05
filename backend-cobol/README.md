@@ -176,7 +176,7 @@ make GIXHOME=/opt/gixsql          # gixpp -> cobc。bin/*.cgi, bin/YAKANBAT, lib
 | # | プログラム | 役割 | 出力 |
 |---|-----------|------|------|
 | 1 | `MKDAT`    | 当日取引抽出(DB TORIHIKI→flat) | TORIHIKI.DAT (ネイティブ) |
-| 2 | `SORTDAT`  | 口座番号順ソート | TORIHIKI.SORTED |
+| 2 | `SORTDAT`  | 口座番号順 + 取引ID順ソート | TORIHIKI.SORTED |
 | 3 | `YAKANBAT` | 反映 + 利息 + KOUZA 更新 | (DB更新) REPORT.WORK |
 | 4 | `SORTRPT`  | 名義カナ順ソート | MEISAI.RPT (98byte固定) |
 | 5 | `NIPPOBAT` | 取引日報(区分別 件数・金額) | NIPPO.RPT |
@@ -189,6 +189,11 @@ make GIXHOME=/opt/gixsql          # gixpp -> cobc。bin/*.cgi, bin/YAKANBAT, lib
 ※ GnuCOBOL の SORT 動詞は Oracle 使用プロセス内で呼ぶとクラッシュするため、
   SORT は YAKANBAT と別プロセス(SORTDAT/SORTRPT)に分離している。
 ※ `SORTDAT` はバイトソートのままで数値順になる(キーが ASCII 数字のため)。
+※ **`SORTDAT` は第2キー `SW1-ID`(取引ID, 1-12byte)を持つ**。第1キー(口座番号)だけだと同一口座に
+  2件以上の取引があるとキーが重複し、重複キーの出力順は規格上未定義になる。`YAKANBAT` は本ファイルの
+  順序どおりに残高を積み上げて `取引後残高` を書くため、順序が揺れると **明細の値そのものが変わる**
+  (最終残高・T レコードは不変)。`MKDAT` が既に `ORDER BY KOUZA_NO, TORIHIKI_ID` で抽出しているので、
+  この2キー整列は恒等変換=**保証された no-op** になる(兄弟の `SORTRPT` も `SW2-SEQ` で同じ安定化を行う)。
 ※ 5-10 は正常型カラム(NUMBER の残高・金額・キー)をそのまま読む。出力は読みやすい LINE SEQUENTIAL。
 
 ```bash
@@ -205,6 +210,20 @@ docker exec -w /app/build \
   - **当座口座**(種別2, 例 `1001011`)= **無利息**(利息=0)。
   - ※ シードは TORIHIKI が空なので、先にオンライン取引(`/api/furikomi` 等)を発生させてから実行すると明細が出力される(取引ゼロなら `MEISAI.RPT` も空)。
 
+### Java 版との 1:1 値対照
+
+```bash
+sh tools/parity/compare.sh      # => PARITY OK  もしくは 最初の不一致箇所の diff
+```
+
+- 固定データは `sql/90_parity_fixture.sql`(Oracle)と `backend-java/.../db/90_parity_fixture.sql`(PostgreSQL)。
+  **オンライン取引で対照データを作ってはいけない** — `TORIHIKI_DT` が挿入時刻(wall-clock)で、その値が
+  明細 D レコード(`MD-TORIHIKI-DT`)に入るため両系で食い違い全行が diff する(しかも当コンテナのみ
+  `TZ=Asia/Tokyo`)。固定データは `TORIHIKI_ID`/`TORIHIKI_DT` をリテラルで固定する。
+- `MEISAI.RPT` は COMP-3 を含むので `tools/parity/meisai_dump.py` でテキスト化して比較する。
+- ⚠️ **バッチは冪等でない**(`ACC-NEW = ACC-BAL + ACC-INT`、処理済フラグ無し)。対照の前に必ず
+  固定データを再適用する。対照中はオンライン操作をしないこと(5-10 は別プロセスなので途中の取引を見る)。
+
 ---
 
 ## 6. リセット(§3.3)
@@ -218,11 +237,22 @@ sqlplus minibank/minibank@//localhost:1521/FREEPDB1 @backend-cobol/sql/99_reset.
 
 ## 7. 検証チェックリスト(§10)
 
-- [ ] レコード長: `MEISAI.RPT`(D/T)=98 をバイト単位で確認(`wc -c`, `hexdump -C ./data/MEISAI.RPT | ...`)。
+- [x] レコード長: `MEISAI.RPT`(D/T)=98 をバイト単位で確認 — `compare.sh` が毎回自動検証する
+      (固定データで 1372 bytes = 98 × 14 レコード)。
 - [ ] 文字セット: `KOUZA.MEIGI_KANJI` が DB では Shift-JIS で格納されること(`SELECT DUMP(MEIGI_KANJI) FROM KOUZA;`)。
-- [ ] オンライン応答が UTF-8(`/api/zandaka` を curl で確認、フロント無変更描画)。日本語が文字化けしない。
-- [ ] バッチ `MEISAI.RPT` が名義カナ順、利息切り捨て整数一致(`floor(残高/365000)`)、当座口座の利息=0。
+- [x] オンライン応答が UTF-8(`/api/zandaka` を curl で確認、フロント無変更描画)。日本語が文字化けしない。
+- [x] バッチ `MEISAI.RPT` が名義カナ順、利息切り捨て整数一致(`floor(残高/365000)`)、当座口座の利息=0。
+- [x] **同一口座内の取引順が `TORIHIKI_ID` 順で決定的**(`SORTDAT` 第2キー `SW1-ID`)。
+      `cmp data/TORIHIKI.DAT TORIHIKI.SORTED` が一致 = 恒等順列(保証された no-op)であることを実測確認済み。
+- [x] **Java 版との 1:1 値対照**: `sh tools/parity/compare.sh` が `PARITY OK` — 帳票7種 diff なし(2026-08-04 実測)。
 - [ ] 振込原子性: `/api/furikomi` の途中失敗で ROLLBACK(残高不整合なし)。
+
+> ⚠️ `MEISAI.RPT` の名義欄は **UTF-8** で格納される(DB はディスク上 Shift-JIS だが GixSQL/OCI が
+> クライアント文字セットを UTF-8 に強制するため)。実測バイト例: 佐藤花子 =
+> `e4 bd 90 e8 97 a4 e8 8a b1 e5 ad 90`。
+> Windows で `MEISAI.RPT` をテキスト化するツールは **出力を UTF-8 に固定**すること
+> (`tools/parity/meisai_dump.py` 参照)。ロケール既定(cp932/cp949 等)で書くと値が同じでも
+> バイトが変わり diff が壊れる。
 
 確認用 SQL:
 ```sql

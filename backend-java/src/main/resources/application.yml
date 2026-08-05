@@ -20,4 +20,10 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+app:
+  batch:
+    # 야간배치 帳票 7종 출력 위치. COBOL 의 /app/build/data 에 대응.
+    # 컨테이너에서는 WORKDIR=/app 이므로 /app/data (compose 에서 호스트로 마운트).
+    output-dir: ${BATCH_OUT_DIR:./data}
+
 # 참고: 이 백엔드는 신규 PostgreSQL 에 붙는다. 기존 COBOL 백엔드의 Oracle 은 건드리지 않는다.

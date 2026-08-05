@@ -125,7 +125,12 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 ## 6. 개발 이어가기
 
 - **COBOL 정본**: 온라인 CGI 9 + 배치 10 (`backend-cobol/README.md` 상단 "현재 구현 현황" + §5 배치).
-- **Java 이식 현황**: 온라인 **9/9 완료** + 배치 완료(`/api/batch/run`). 기능 파리티 달성. 상세·로드맵은 `backend-java/DESIGN.md`.
+- **Java 이식 현황**: 온라인 **9/9 완료** + 배치 완료(`/api/batch/run` — posting + **明細(D/T)** + 帳票 6종,
+  파일 7종을 `backend-java/data/`에 출력). 상세·로드맵은 `backend-java/DESIGN.md`.
+- **배치 파리티 검증**: `sh tools/parity/compare.sh` → `PARITY OK`(帳票 7종 `diff` 무차이).
+  ⚠️ 대조 데이터는 **반드시 픽스처**(`90_parity_fixture.sql`)로 만들 것 — 온라인 이체로 만들면
+  `TORIHIKI_DT`(삽입 시각)가 양쪽에서 달라져 明細이 전부 불일치한다. 배치는 멱등이 아니므로
+  대조 전에 매번 픽스처를 재적용한다.
 - **Java 남은 것(운영화)**: 서버 배포(`compose.java.yml`로), 인증/PW 해시, 프로필 컬럼 확장.
 - **개발 패턴(Java)**: `web(REST) → service(@Transactional) → repository(JdbcTemplate, 정상 타입 컬럼 직접 바인딩)`. 컬럼이 모두 정상 타입(integer/bigint/numeric/varchar/char/date, 일본어=UTF-8)이라 별도 코덱 없이 값을 그대로 다룹니다. (구 `codec` 패키지는 제거됨.)
 

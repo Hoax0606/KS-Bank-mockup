@@ -18,9 +18,14 @@ COBOL ASIS 백엔드의 Java 이식. **일반 타입 + 평문 UTF-8 저장** (Po
 - ✅ PostgreSQL 스키마(전 컬럼 일반 타입, 평문 UTF-8) + 전체 시드(8계좌·10지점·5은행·3공지).
   (구 디코드 뷰 `V_KOUZA`/`V_TORIHIKI`·함수 `fn_unzone`/`fn_unpack`·UTF-8 미러 컬럼은 제거)
 - ✅ **온라인 9종** — `login` `signup` `zandaka` `holdings` `meisai` `furikomi` `loan` `repay` `notice` (계약 COBOL 동일, 응답 UTF-8, E2E 검증)
-- ✅ **야간배치** — `POST /api/batch/run` (posting + 帳票 6종; COBOL 10스텝 = SORT 2개는 ORDER BY로 흡수)
+- ✅ **야간배치** — `POST /api/batch/run` (posting + **明細(D/T)** + 帳票 6종). COBOL 10스텝 대응:
+  SORTDAT=SQL `ORDER BY`로 흡수, SORTRPT=`KanaSortKey`(UTF-8 바이트 카나 정렬)로 재구현.
+  帳票 **파일 7종**을 `app.batch.output-dir`(기본 `./data`)에 출력 — 6종은 COBOL 서식 그대로.
 - ✅ 헬스체크 `GET /api/health`, 예외 핸들러
-- ⬜ 남은 것: 프로필 컬럼 확장·인증/보안 강화 등 운영화 (기능 자체는 COBOL 파리티 달성)
+- ✅ **배치 파리티 검증 — `PARITY OK` (2026-08-04 실측, 帳票 7종 `diff` 무차이)**.
+  `sh tools/parity/compare.sh` (픽스처 → 양쪽 배치 → 7개 `diff`).
+  단위테스트 21개는 `mvn test`(`Dockerfile`은 `-DskipTests`이므로 이미지 빌드로는 안 돌아감).
+- ⬜ 남은 것: 프로필 컬럼 확장·인증/보안 강화 등 운영화
 
 ## 로컬 실행
 

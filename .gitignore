@@ -22,6 +22,14 @@ target/
 *.jar
 !backend-cobol/jef/jef4j.jar
 
+# 야간배치 帳票 산출물 (COBOL 은 컨테이너 내 /app/build/data, Java 는 아래 디렉터리)
+#   ※ 위 '*.lst' 규칙이 KOUZA.LST 를 이미 무시하므로, 디렉터리째 명시해 의도를 분명히 한다
+backend-java/data/*
+!backend-java/data/.gitkeep
+
+# 파리티 대조 하네스 작업물
+tools/parity/out/
+
 # OS / 에디터 잡파일
 .DS_Store
 Thumbs.db

@@ -1,0 +1,13 @@
+야간배치 帳票 출력 디렉터리 (app.batch.output-dir 기본값 ./data)
+
+POST /api/batch/run 실행 시 아래 7개가 생성됩니다:
+  MEISAI.TXT   明細(D=明細行 / T=口座合計)  ※COBOL은 MEISAI.RPT 98byte 고정+COMP-3 바이너리
+  NIPPO.RPT    取引日報 (区分별 건수·금액)
+  ZANDAKA.RPT  残高一覧 + 총잔액
+  TESURYO.RPT  振込手数料 집계
+  KYUMIN.RPT   休眠(무거래) 口座
+  KOUZA.LST    口座マスタ一覧
+  TOKEI.RPT    統計サマリ
+
+COBOL 산출물과의 1:1 대조는 tools/parity/compare.sh 를 쓰세요.
+산출물 자체는 git 추적 대상이 아닙니다(루트 .gitignore).

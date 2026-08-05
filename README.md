@@ -118,6 +118,12 @@ sudo docker exec -w /app/build \
   `TESURYO.RPT`, `KYUMIN.RPT`, `KOUZA.LST`, `TOKEI.RPT`). 10단계 상세는 `backend-cobol/README.md` §5.
 - 5~10(帳票)은 읽기 전용. 3(YAKANBAT)은 당일거래가 있을 때만 이자를 가산(거래 0건이면 잔액 불변).
 - 리포트 확인 예: `sudo docker exec mb-asis-backend cat /app/build/data/TOKEI.RPT`
+- **Java 백엔드도 같은 帳票 7종을 파일로 냅니다** — `POST /api/batch/run` → `backend-java/data/`
+  (`MEISAI.TXT` + 6종. 6종은 COBOL 서식 그대로).
+- **COBOL ↔ Java 1:1 값 대조**: `sh tools/parity/compare.sh` → `PARITY OK`.
+  고정 픽스처(`sql/90_parity_fixture.sql`)를 양쪽에 적용해 배치를 돌리고 帳票 7종을 `diff` 합니다.
+  ⚠️ 온라인 이체로 대조 데이터를 만들면 `TORIHIKI_DT`(삽입 시각)가 양쪽에서 달라져 明細이 전부
+  불일치합니다 — 반드시 픽스처를 쓰세요. 상세는 `backend-java/DESIGN.md` §8.
 
 ### 4.3 상태 확인 / 재기동
 

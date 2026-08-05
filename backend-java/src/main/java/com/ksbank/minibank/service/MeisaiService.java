@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import com.ksbank.minibank.config.GlobalExceptionHandler.BusinessException;
 import com.ksbank.minibank.domain.AccountDetail;
+import com.ksbank.minibank.domain.TxnDelta;
 import com.ksbank.minibank.domain.TxnRow;
 import com.ksbank.minibank.repository.AccountRepository;
 import com.ksbank.minibank.repository.TransactionRepository;
@@ -49,7 +50,7 @@ public class MeisaiService {
             long tes = r.tesuryo();
             aite[i] = r.aite();
             memo[i] = nz(r.tekiyou());       // 온라인분 NULL → ""
-            delta[i] = delta(kbn[i], kingaku[i], tes);
+            delta[i] = TxnDelta.of(kbn[i], kingaku[i], tes);
             sum += delta[i];
         }
         // 期首 → 오름차순 누적 afterBal
@@ -82,16 +83,6 @@ public class MeisaiService {
         res.put("kouza", kz);
         res.put("rows", rows);
         return res;
-    }
-
-    /** 区分별 부호: 1=입금(+), 2=출금(-), 3=振込(-(금액+수수료)). */
-    private static long delta(String kbn, long kingaku, long tesuryo) {
-        return switch (kbn) {
-            case "1" -> kingaku;
-            case "2" -> -kingaku;
-            case "3" -> -(kingaku + tesuryo);
-            default -> 0;
-        };
     }
 
     private static String nz(String s) { return s == null ? "" : s; }
