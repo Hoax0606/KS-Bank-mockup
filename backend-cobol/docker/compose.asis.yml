@@ -1,52 +1,82 @@
 # ============================================================
-#  ASIS デモ  compose 조각
-#   서비스: asis-backend(CGI/nginx) + oracle(Free 23ai, 1521)
+#  ASIS デモ  compose (COBOL/Shift-JIS 스택)
+#   서비스: oracle_sjis(Oracle XE 21c · XEPDB1 · JA16SJISTILDE)
+#           + mb-cobol-sjis(nginx + fcgiwrap + CGI, 화면+API)
+#
+#   ★구성은 SERVER-SETUP.md §3-1 / §3-2 와 동일하게 맞춘다★
+#     로컬에서 clone 후 `docker compose up` 하면 서버와 같은 구성이 뜬다
+#     (컨테이너명·포트·PDB명·문자셋 전부 일치). 그래야 서버 운영 절차서가
+#     로컬에도 그대로 적용된다.
+#
 #   실행(리포지토리 루트에서):
 #     docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
+#     -> http://localhost:8092/  (프론트 + API 동일 오리진)
+#
 #   VM 재부팅 시 자동 복구: restart: unless-stopped
 # ============================================================
 name: minibank-cobol
 services:
-  oracle:
-    # ★ JA16SJIS(Shift-JIS) 오라클.
-    #   무료 오라클 컨테이너(gvenzl 등)는 프리빌드 DB가 AL32UTF8로 고정돼
-    #   ORACLE_CHARACTERSET를 무시한다. 그래서 정식 이미지를 빌드 타임에
-    #   dbca 로 JA16SJIS DB로 재생성하고 스키마+시드까지 구워 넣은
-    #   커스텀 이미지(Dockerfile.oracle-sjis)를 사용한다.
-    #   최초 빌드 ~10분(이미지 ~18GB), 이후는 캐시 재사용.
-    build:
-      context: ../..                    # 리포지토리 루트
-      dockerfile: backend-cobol/docker/Dockerfile.oracle-sjis
-    image: mb-oracle-sjis:latest
-    container_name: mb-oracle
+  oracle_sjis:
+    # ★Shift-JIS 계열 Oracle. 서버(SERVER-SETUP §3-1)와 동일 이미지·동일 문자셋.
+    #   이 이미지는 기본이 AL32UTF8 이므로 ORACLE_CHARACTERSET 을 반드시 명시해야
+    #   Shift-JIS DB 로 생성된다(runOracle.sh 가 미지정 시 AL32UTF8 로 폴백).
+    #   ※ 과거에는 Oracle Free 이미지를 dbca 로 JA16SJIS 재생성하는 커스텀
+    #     이미지(18.6GB, 빌드 40분)를 썼으나, 서버와 구성을 맞추면서 폐지했다.
+    image: limslee/oracle-database-xe:21.3.0
+    container_name: oracle_sjis
     environment:
-      ORACLE_PWD: oracle                # SYS/SYSTEM/PDBADMIN 비밀번호(정식 이미지 변수)
+      ORACLE_PWD: migration              # SYS/SYSTEM/PDBADMIN 비밀번호(데모 더미값)
+      ORACLE_CHARACTERSET: JA16SJISTILDE # ★필수★ 미지정 시 AL32UTF8 이 됨
+      # 시드/DDL 파일은 UTF-8 로 저장돼 있다. 적재 시 UTF-8 -> JA16SJISTILDE
+      # 변환이 일어나게 하려면 클라이언트 문자셋을 UTF-8 로 알려야 한다.
+      NLS_LANG: AMERICAN_AMERICA.AL32UTF8
+      TZ: Asia/Tokyo
     ports:
-      - "1521:1521"
+      - "1522:1521"                      # SERVER-SETUP §3-1 과 동일
+    networks:
+      default:
+        # 앱은 호스트명 'oracle' 로 접속한다(서버는 --add-host oracle:<IP> 로 동일 효과).
+        aliases: [oracle]
+    volumes:
+      # DB 생성 직후 1회 실행되는 초기화 스크립트(runUserScripts.sh 가 sysdba 로 실행).
+      # 알파벳 순으로 돌므로 유저 생성 -> DDL -> 시드 순서가 보장된다.
+      # ※ sql/ 디렉터리를 통째로 마운트하면 90_parity_fixture.sql(거래 전건 삭제)과
+      #   99_reset.sql 까지 실행되므로, 필요한 3개만 개별 마운트한다.
+      - ./oracle-sjis/setup/00_mkuser.sql:/opt/oracle/scripts/setup/00_mkuser.sql:ro
+      - ../sql/01_ddl.sql:/opt/oracle/scripts/setup/01_ddl.sql:ro
+      - ../sql/02_seed.sql:/opt/oracle/scripts/setup/02_seed.sql:ro
     healthcheck:
-      # 앱 계정으로 실제 접속돼야 정상(=FREEPDB1 자동오픈 + 스키마 존재)
-      test: ["CMD-SHELL", "echo 'select 1 from dual;' | \"$$ORACLE_HOME/bin/sqlplus\" -s -L minibank/minibank@//localhost:1521/FREEPDB1 | grep -q 1"]
+      # 앱 계정으로 접속 + 스키마·시드까지 올라왔는지 확인한다
+      # (KOUZA 를 읽을 수 있어야 통과 → 유저 생성 / XEPDB1 오픈 / DDL / 시드 전부 검증)
+      #
+      # ★'grep -q 1' 같은 패턴을 쓰면 안 된다★ — 실패 메시지에도 숫자 1 이 들어있어
+      #   (ORA-12514 / SP2-0157 …) 에러인데도 통과해버린다. 실제로 그 버그가 있었다.
+      #   그래서 에러문에 절대 나올 수 없는 마커('HCOK')를 SELECT 해서 확인한다.
+      test: ["CMD-SHELL", "echo \"select 'HCOK' from KOUZA where rownum=1;\" | \"$$ORACLE_HOME/bin/sqlplus\" -s -L minibank/minibank@//localhost:1521/XEPDB1 | grep -q HCOK"]
       interval: 15s
       timeout: 10s
-      retries: 40
-      start_period: 180s
+      retries: 60
+      # 최초 기동은 XE 가 DB를 새로 만들고 스키마까지 적재하므로 10분 이상 걸린다
+      start_period: 900s
     restart: unless-stopped
 
-  asis-backend:
+  mb-cobol-sjis:
     build:
-      context: ../..                    # 리포지토리 루트
+      context: ../..                     # 리포지토리 루트
       dockerfile: backend-cobol/docker/Dockerfile.asis
-    container_name: mb-asis-backend
+    image: minibank-cobol-sjis:latest    # SERVER-SETUP §4-4 와 동일한 이미지명
+    container_name: mb-cobol-sjis
     depends_on:
-      oracle:
+      oracle_sjis:
         condition: service_healthy
     environment:
-      ORA_CONN: "oracle://oracle:1521/FREEPDB1"
+      ORA_CONN: "oracle://oracle:1521/XEPDB1"
       ORA_USER: "minibank"
       ORA_PASS: "minibank"
-      # DB는 JA16SJIS 저장. GixSQL 드라이버가 취득 시 UTF-8로 강제 변환하므로
-      # (NLS_LANG 실질 무시) 응답은 UTF-8. 프론트도 UTF-8.
+      # DB는 JA16SJISTILDE 저장. GixSQL/OCI 드라이버가 취득 시 클라이언트 문자셋을
+      # UTF-8로 강제하므로(NLS_LANG 실질 무시) 응답은 UTF-8. 프론트도 UTF-8.
       NLS_LANG: "AMERICAN_AMERICA.AL32UTF8"
+      TZ: "Asia/Tokyo"
     ports:
-      - "8080:80"
+      - "8092:80"                        # SERVER-SETUP §3-2 와 동일(화면+API)
     restart: unless-stopped

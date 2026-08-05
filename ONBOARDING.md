@@ -18,7 +18,7 @@
 
 **두 개의 백엔드** (프론트는 공용):
 - `backend-cobol/` — **정본**. GnuCOBOL + Oracle(JA16SJIS). 사내 서버에 **라이브 구동 중**.
-- `backend-java/` — COBOL을 Spring Boot + PostgreSQL(UTF-8)로 이식(온라인 9종 + 배치 완료). **아직 서버 배포 안 함(로컬만)**.
+- `backend-java/` — COBOL을 Spring Boot + PostgreSQL(UTF-8)로 이식(온라인 9종 + 배치 완료). 사내 서버에도 **라이브 구동 중**(`mbj-app`).
 
 ---
 
@@ -41,7 +41,7 @@
 | 경로 | 내용 |
 |------|------|
 | `frontend/` | 공용 SPA (바닐라 JS). `/api/...` 호출 |
-| `backend-cobol/` | **정본 백엔드**: `cobol/`, `cobol/copy/`(카피북), `sql/`(JA16SJIS DDL·시드), `docker/`(`Dockerfile.asis` + `Dockerfile.oracle-sjis` + `oracle-sjis/`), `build/` |
+| `backend-cobol/` | **정본 백엔드**: `cobol/`, `cobol/copy/`(카피북), `sql/`(JA16SJIS DDL·시드), `docker/`(`Dockerfile.asis` + `compose.asis.yml` + `oracle-sjis/setup/`), `build/` |
 | `backend-java/` | Java 이식: `src/main/java/com/ksbank/minibank/`(web/service/repository/domain/batch), `resources/db/`(schema·seed, UTF-8), `resources/static/`(프론트), `DESIGN.md` |
 | `db/` | 참조용 UTF-8 스키마(ASIS와 별개, 보존만) |
 | `README.md` / `DEMO.md` / `backend-cobol/README.md` / `backend-java/DESIGN.md` | 문서 |
@@ -55,7 +55,8 @@
 # Java판 (가장 간단 · 준비물 없음) → http://localhost:8081/   (프로젝트명: minibank-java)
 docker compose -f backend-java/compose.java.yml up -d --build
 
-# COBOL판 (정본) → http://localhost:8080/   (프로젝트명: minibank-cobol)
+# COBOL판 (정본) → http://localhost:8092/   (프로젝트명: minibank-cobol)
+#   ※ 최초 기동은 Oracle XE 가 Shift-JIS DB를 새로 만들어 10~20분 걸림 (docker logs -f oracle_sjis)
 #   ※ 먼저 backend-cobol/docker/vendor/README.md 보고 vendor 3개 다운로드
 docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
@@ -70,11 +71,13 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 | 대상 | 화면(브라우저) | API | DB(DBeaver) |
 |------|----------------|-----|-------------|
-| **Java** (로컬) | `http://localhost:8081/` | `localhost:8081/api/...` | PostgreSQL `localhost:5433` / `minibank` (minibank/minibank) |
-| **COBOL** (로컬) | `http://localhost:8080/` | `localhost:8080/api/...` | Oracle `localhost:1521/FREEPDB1` (minibank/minibank) |
-| **COBOL** (라이브 서버) | `http://<서버주소>:8090/` | `<서버주소>:8090/api/...` | Oracle `<서버주소>:1521/FREEPDB1` (minibank/minibank) |
+| **Java** (로컬) | `http://localhost:8081/` | `localhost:8081/api/...` | PostgreSQL `localhost:5434` / `minibank` (minibank/minibank) |
+| **COBOL** (로컬) | `http://localhost:8092/` | `localhost:8092/api/...` | Oracle `localhost:1522/XEPDB1` (minibank/minibank) |
+| **COBOL** (라이브 서버) | `http://<서버주소>:8092/` | `<서버주소>:8092/api/...` | Oracle `<서버주소>:1522/XEPDB1` (minibank/minibank) |
+| **Java** (라이브 서버) | `http://<서버주소>:8081/` | `<서버주소>:8081/api/...` | PostgreSQL `<서버주소>:5434` / `minibank` |
 
-- **포트 분리**: 8080=COBOL 화면 · 8081=Java 화면 · 1521=Oracle · 5433=PostgreSQL (서로 안 겹침, 동시에 켜도 됨)
+- **포트**(로컬·서버 동일, `SERVER-SETUP.md` §3 기준): **8092**=COBOL 화면 · **8081**=Java 화면 · **1522**=Oracle(XEPDB1) · **5434**=PostgreSQL
+- ⚠️ **1521 / 5433 은 우리 것이 아닙니다** — 서버의 다른 프로젝트용 `oracle`(FREEPDB1) / `postgres`(bank_postgres). 헷갈리면 빈 DB를 보게 됩니다.
 - 두 백엔드는 **서로 다른 DB**를 봄(COBOL→Oracle JA16SJIS, Java→PostgreSQL UTF-8) → 한쪽에서 이체해도 다른 쪽엔 반영 안 됨(정상)
 - 화면·기능·로그인 계정은 두 백엔드 동일. DB 컬럼은 **정상 타입**이라 일본어가 읽는 값 그대로 표시됨(디코드 뷰 불필요, §5)
 
@@ -85,8 +88,9 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 절차는 `README.md` §4에 명령까지 정리돼 있음. 요약:
 - **코드 관리**: 서버 `~/minibank-demo`는 **GitHub의 git clone**(코드는 git, 데이터만 서버 고유). 갱신 = `cd ~/minibank-demo && git pull` → 재빌드(§4.4). ※vendor 파일은 깃에 없으니 유지/재배치 주의. (구 scp 사본 백업은 `~/minibank-demo.bak`, 검증 후 삭제 가능)
 - **접속**: Tailscale 켜고 `ssh -i <키> <계정>@<서버주소>`
-- **웹**: `http://<서버주소>:8090/` , **DB**: `<서버주소>:1521/FREEPDB1`
-- **배치 실행**: `sudo docker exec ... mb-asis-backend sh -c 'sh run_batch.sh'` (env 주입 필요 — README §4.2)
+- **웹**: COBOL `http://<서버주소>:8092/` · Java `http://<서버주소>:8081/`
+- **DB**: Oracle `<서버주소>:1522/XEPDB1` · PostgreSQL `<서버주소>:5434/minibank
+- **배치 실행**: `sudo docker exec ... mb-cobol-sjis sh -c 'sh run_batch.sh'` (env 주입 필요 — README §4.2)
 - **재배포**(소스 변경 시): 백엔드 이미지만 재빌드(§4.4). ★**oracle 컨테이너는 절대 건드리지 말 것**(라이브 데이터).
 - **데이터 초기화**: `sql/01_ddl`+`02_seed` 재적용(§4.5)
 
@@ -96,14 +100,16 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 | 환경 | compose 프로젝트 | 컨테이너 (앱 / DB) | 포트 | 비고 |
 |------|------------------|--------------------|------|------|
-| 로컬 COBOL | `minibank-cobol` | `mb-asis-backend` / `mb-oracle` | 8080 / 1521 | compose 기본 네트워크 |
-| 로컬 Java | `minibank-java` | `mbj-app` / `mbj-postgres` | 8081 / 5433 | |
-| **서버(라이브) COBOL** | (compose 아닌 `docker run`) | `mb-asis-backend` / **`oracle`** | 8090 / 1521 | 네트워크 `mbnet` |
+| 로컬 COBOL | `minibank-cobol` | `mb-cobol-sjis` / `oracle_sjis` | 8092 / 1522 | compose 기본 네트워크 |
+| 로컬 Java | `minibank-java` | `mbj-app` / `mbj-postgres` | 8081 / 5434 | |
+| **서버(라이브) Java** | `minibank-java` (compose) | `mbj-app` / `mbj-postgres` | 8081 / 5434 | |
+| **서버(라이브) COBOL** | (compose 아닌 `docker run`) | `mb-cobol-sjis` / `oracle_sjis` | 8092 / 1522 | 기본 bridge, `--add-host oracle:<IP>` |
 
-- ⚠️ **Oracle 컨테이너 이름이 환경마다 다름**: 로컬 = `mb-oracle`, **서버 = `oracle`**. `docker exec`/`docker cp` 시 환경에 맞게 사용.
-  (예: 서버 배치 = `sudo docker exec ... mb-asis-backend ...`, 서버 초기화 = `sudo docker cp ... oracle:/tmp/...`)
+- ✅ **컨테이너명·포트가 로컬/서버 동일**하게 정렬됐습니다(`SERVER-SETUP.md` §3 기준) — `oracle_sjis` / `mb-cobol-sjis`,
+  8092 / 1522 / 5434. 예전처럼 환경마다 이름을 바꿔 쓸 필요가 없습니다.
+- ⚠️ 단 **서버는 `sudo` 필요**하고, COBOL→Oracle 연결은 서버에서 **컨테이너 IP 직결**입니다(README §4.4).
 - 로컬은 `docker`가 그냥 되지만, **서버는 `sudo docker`** 로 실행.
-- Java는 아직 서버 미배포(로컬만). 서버 배포 시엔 포트 `8091` 등 COBOL(8090)과 겹치지 않게.
+- Java도 서버에 배포돼 있음(`mbj-app` 8081 / `mbj-postgres` 5434).
 
 ### DB 직접 조회 (DBeaver 등)
 
@@ -111,11 +117,13 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 | 대상 | Type | Host | Port | DB/Service | 계정 | 문자셋 |
 |------|------|------|------|-----------|------|--------|
-| COBOL판 (라이브 서버) | Oracle | `<서버주소>` | `1521` | `FREEPDB1` | `minibank` / `minibank` | JA16SJIS |
-| Java판 (로컬 compose) | PostgreSQL | `localhost` | **`5433`** ⚠️ | `minibank` | `minibank` / `minibank` | UTF-8 |
+| COBOL판 (로컬) | Oracle | `localhost` | **`1522`** | `XEPDB1` | `minibank` / `minibank` | JA16SJISTILDE |
+| COBOL판 (라이브 서버) | Oracle | `<서버주소>` | **`1522`** | `XEPDB1` | `minibank` / `minibank` | JA16SJISTILDE |
+| Java판 (로컬/서버) | PostgreSQL | `localhost` 또는 `<서버주소>` | **`5434`** | `minibank` | `minibank` / `minibank` | UTF-8 |
 
-- **Oracle(Shift-JIS)**: 컬럼은 NUMBER/VARCHAR2/CHAR. 일본어는 RAW hex가 아니라 읽는 텍스트로 표시(JDBC 드라이버가 JA16SJIS→클라이언트 변환). 로컬 standalone 테스트 컨테이너는 호스트 포트 1522, `compose.asis.yml`의 `oracle` 서비스는 1521.
-- **PostgreSQL(UTF-8)**: 컬럼은 integer/varchar/bigint, 일본어는 평문 UTF-8. ⚠️ 포트 **5433**(호스트 native PG 5432과 겹침 방지). 옛 DBeaver 연결이 아직 `bytea`로 보이면 캐시된 메타데이터이니 **재접속 + 새로고침**.
+- **Oracle(Shift-JIS)**: 컬럼은 NUMBER/VARCHAR2/CHAR. 일본어는 RAW hex가 아니라 읽는 텍스트로 표시(JDBC 드라이버가 JA16SJISTILDE→클라이언트 변환). Service Name 에 **`XEPDB1`** (SID 아님).
+  ⚠️ **CLI(sqlplus)로 볼 때는 `NLS_LANG=AMERICAN_AMERICA.AL32UTF8` 주입 필수** — 없으면 일본어가 `????` 로 보입니다(데이터는 정상). DBeaver(JDBC)는 불필요.
+- **PostgreSQL(UTF-8)**: 컬럼은 integer/varchar/bigint, 일본어는 평문 UTF-8. ⚠️ 포트 **5434**. 옛 DBeaver 연결이 아직 `bytea`로 보이면 캐시된 메타데이터이니 **재접속 + 새로고침**.
   ```sql
   SELECT * FROM kouza ORDER BY kouza_no;   -- 사람이 읽는 값 그대로 (양쪽 DB 동일)
   ```
@@ -148,10 +156,10 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 - `gixpp`(EXEC SQL 프리컴파일) 함정: SORT 못 다룸 → `SORTDAT/SORTRPT` 별 프로세스. 코덱 카피북은 **한 줄에 한 문장**(마침표 72칸 넘으면 무시됨). COPY는 `expand_copy.sh`로 평탄화 후 넘김. 긴 EXEC SQL 줄은 72칸 초과 시 호스트변수명 잘림.
 - vendor(Oracle Instant Client·GixSQL)는 재배포 불가라 깃에 없음 → 직접 다운로드(`vendor/README.md`).
 - **sudo 함정**: 서버에서 `sudo docker build` 시 `~`가 `/root`로 잡힘 → 빌드 컨텍스트는 **절대경로**로.
-- **Oracle은 JA16SJIS 커스텀 이미지**: `docker/Dockerfile.oracle-sjis`(+`oracle-sjis/build-sjis-db.sh`·`mkuser.sql`)가 공식 Oracle Free 이미지에 `dbca -characterSet JA16SJIS`로 DB를 재생성하고 스키마+시드(`sql/01_ddl.sql`·`02_seed.sql`)를 빌드 시점에 구워 넣음(재기동 시 SAVE STATE 자동 오픈). 스키마 바꾸면 SQL 두 파일을 고치고 **이미지 재빌드**.
+- **Oracle은 빌드하지 않음**: 서버와 같은 `limslee/oracle-database-xe:21.3.0`(PDB `XEPDB1`)을 그대로 쓰고, compose가 `ORACLE_CHARACTERSET: JA16SJISTILDE`를 **명시**함(미지정 시 AL32UTF8 로 만들어져 버림 — 함정). 스키마·시드는 `/opt/oracle/scripts/setup` 훅으로 최초 기동 시 1회 자동 적재(`00_mkuser.sql`→`01_ddl.sql`→`02_seed.sql`). 스키마를 바꾸면 **`docker compose down -v` 후 재기동**해야 다시 적재됨(이미지 재빌드는 불필요).
 
 **Java**
-- **로컬 PostgreSQL(5432) 충돌**: 호스트에 네이티브 PG가 있으면 겹침 → `compose.java.yml`은 PG를 **5433**으로 공개(앱 8081). COBOL 로컬(8080/1521)과도 분리.
+- **DB 포트 혼동이 최대 함정**: 우리 것은 **1522/XEPDB1** 과 **5434/minibank**. 서버의 **1521/FREEPDB1**·**5433/bank_postgres** 는 다른 프로젝트이고, 호스트 네이티브 PG는 5432. DBeaver 연결 이름에 환경을 적어두면(예: `로컬-COBOL-Oracle`) 실수를 막을 수 있습니다.
 - **charset 강제**: `application.yml`이 서블릿 인코딩을 UTF-8로 강제. 컬럼은 전부 정상 타입이라 예전 codec/jef4j 관련 함정(fat jar에서 커스텀 charset SPI 미탐지 등)은 더 이상 없음(해당 코드 삭제됨).
 
 ---

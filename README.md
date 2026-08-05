@@ -19,18 +19,29 @@ DB는 **정상 타입 컬럼**으로 저장하되, 문자셋을 메인프레임 
 
 ## 1. 전체 구조
 
+**같은 프론트엔드**를 두 백엔드가 각각 서빙합니다. 두 스택은 **DB를 공유하지 않고** 완전히 독립입니다.
+
 ```
-브라우저 (frontend/)  ──/api/...──▶  CGI (nginx + fcgiwrap)
-                                        │
-                                   COBOL (GnuCOBOL + GixSQL EXEC SQL)
-                                             │
-                                             └────── Oracle
-                                        (JA16SJIS DB · 정상 타입 컬럼:
-                                         NUMBER / VARCHAR2 / CHAR)
+                프론트엔드 SPA (index.html / app.js / styles.css)
+                   ↑ 두 벌이 완전히 동일 — /api/... 상대경로 호출 ↑
+   ┌──────────────────────────────┐   ┌──────────────────────────────┐
+   │  :8092  ASIS (현행·정본)      │   │  :8081  TOBE (이식본)        │
+   │  nginx + fcgiwrap (CGI)      │   │  Spring Boot (내장 Tomcat)   │
+   │        ↓                     │   │        ↓                     │
+   │  COBOL (GnuCOBOL + GixSQL)   │   │  Java 21 (JdbcTemplate)      │
+   │        ↓                     │   │        ↓                     │
+   │  Oracle XE  XEPDB1  :1522    │   │  PostgreSQL 16      :5434    │
+   │  JA16SJISTILDE (Shift-JIS)   │   │  UTF-8                       │
+   │  컨테이너 oracle_sjis         │   │  컨테이너 mbj-postgres        │
+   └──────────────────────────────┘   └──────────────────────────────┘
+     컨테이너 mb-cobol-sjis              컨테이너 mbj-app
 ```
 
-- 프론트엔드는 SPA(바닐라 JS)이며 `/api/...` 상대경로로 백엔드를 호출합니다. 프론트는 UTF-8.
+- 프론트엔드는 SPA(바닐라 JS)이며 `/api/...` **상대경로**로 호출하므로, 어느 오리진에 올려도 그대로 동작합니다.
+  즉 **화면은 양쪽이 동일하고, 다른 것은 백엔드와 DB뿐**입니다.
 - 백엔드는 **ASIS(레거시) COBOL**이 정본. nginx가 프론트 정적파일과 `/api`를 **같은 오리진**으로 서빙합니다.
+- **마이그레이션 목표** = 같은 입력을 넣었을 때 두 DB에 **같은 값**이 들어가는 것.
+  그 증명이 `sh tools/parity/compare.sh` → `PARITY OK` 입니다 (§4.2).
 - COBOL은 정상 컬럼을 그대로 읽고 씁니다(호스트변수 직접 바인딩, VARCHAR2 등가비교는 `RTRIM(:hv)`). GixSQL/OCI 드라이버가 NLS_LANG과 무관하게 **클라이언트 문자셋을 UTF-8로 강제**(Instant Client basiclite에 문자셋 변환기가 없음)하므로, 일본어 컬럼은 앱에 **UTF-8**로 도착하고 HTTP 응답도 UTF-8입니다.
 - 결과: **DB는 디스크에 Shift-JIS로 저장, 앱/HTTP는 UTF-8로 통신, 브라우저는 일본어 정상 표시.**
 
@@ -43,10 +54,10 @@ DB는 **정상 타입 컬럼**으로 저장하되, 문자셋을 메인프레임 
 | `frontend/` | SPA (index.html / app.js / styles.css). `/api/...` 호출 | 사용 중 |
 | `backend-cobol/` | **ASIS 정본 백엔드** — COBOL 소스·카피북·SQL·Docker | 사용 중 (배포됨) |
 | `db/` | app.js 인메모리 모델을 정규화한 UTF-8 Oracle 스키마 | **참조용** (ASIS와 별개) |
-| `backend-java/` | Java 전환용 자리(빈 폴더) | 예정 (§7) |
+| `backend-java/` | **Java 이식본** — Spring Boot + PostgreSQL(UTF-8). 온라인 9종 + 야간배치 | 사용 중 |
 | `claude readme/` | ASIS 백엔드 설계 프롬프트 원문 | 참고 문서 |
 
-`backend-cobol/` 안 주요 폴더: `cobol/`(COBOL 소스), `cobol/copy/`(카피북 — 레코드/CGI/DB/절차), `sql/`, `docker/`(`Dockerfile.asis` + `Dockerfile.oracle-sjis` + `oracle-sjis/`), `cgi/`, `build/`.
+`backend-cobol/` 안 주요 폴더: `cobol/`(COBOL 소스), `cobol/copy/`(카피북 — 레코드/CGI/DB/절차), `sql/`, `docker/`(`Dockerfile.asis` + `compose.asis.yml` + `oracle-sjis/setup/`), `cgi/`, `build/`.
 
 > `db/`와 `backend-cobol/sql/`은 **서로 다른 스키마**입니다. 실제 구동 정본은 `backend-cobol/sql/`(Oracle JA16SJIS, 정상 타입), `db/`는 UTF-8 정규화 참조본으로 보존만 합니다.
 
@@ -54,14 +65,33 @@ DB는 **정상 타입 컬럼**으로 저장하되, 문자셋을 메인프레임 
 
 ## 3. 실행 방법 (Docker)
 
+> 📌 **컨테이너명·포트·PDB명·문자셋은 `SERVER-SETUP.md`(기밀 폴더) §3-1/§3-2 의 서버 구성과 동일하게
+> 맞춰져 있습니다.** clone 후 `docker compose up` 하면 로컬에 서버와 같은 구성이 뜨므로, 서버 운영
+> 절차서를 로컬에도 그대로 쓸 수 있습니다.
+
 ```bash
 # 리포지토리 루트에서
-docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
-# → http://localhost:8080/  (프론트 + API 동일 오리진)
+docker compose -f backend-cobol/docker/compose.asis.yml up -d --build   # COBOL 스택
+docker compose -f backend-java/compose.java.yml       up -d --build   # Java 스택
+# → COBOL: http://localhost:8092/   (프론트 + API 동일 오리진)
+# → Java : http://localhost:8081/   (프론트 + API 동일 오리진)
 ```
 
-- `oracle` (**JA16SJIS 커스텀 이미지**, :1521): `docker/Dockerfile.oracle-sjis`가 공식 Oracle Free 이미지를 받아 빌드 시점에 `dbca -characterSet JA16SJIS`로 DB를 재생성하고 스키마+시드(`sql/01_ddl.sql`·`02_seed.sql`)를 구워 넣습니다(재기동 시 SAVE STATE로 자동 오픈). `compose.asis.yml`의 `oracle` 서비스가 이 이미지를 빌드합니다.
-- `asis-backend` (nginx + fcgiwrap + CGI, 8080→80): 프론트 `/`, API `/api/...`
+| 서비스 | 컨테이너 | 포트(host→cont) | 연결 DB |
+|---|---|---|---|
+| COBOL 백엔드 (Shift-JIS) | `mb-cobol-sjis` | `8092→80` (화면+API) | `oracle_sjis` **XEPDB1**, `minibank/minibank` |
+| Oracle XE 21c (Shift-JIS) | `oracle_sjis` | `1522→1521` | PDB **XEPDB1**, 문자셋 **JA16SJISTILDE** |
+| Java 백엔드 (UTF-8) | `mbj-app` | `8081→8080` (화면+API) | `mbj-postgres` |
+| Java용 PostgreSQL (UTF-8) | `mbj-postgres` | `5434→5432` | DB `minibank`, `minibank/minibank` |
+
+- **Oracle은 빌드하지 않습니다** — `limslee/oracle-database-xe:21.3.0`(서버와 동일 이미지)를 그대로 씁니다.
+  ⚠️ 이 이미지는 기본이 `AL32UTF8`이므로 compose가 **`ORACLE_CHARACTERSET: JA16SJISTILDE`를 명시**합니다.
+  스키마·시드는 `oracle-sjis/setup/00_mkuser.sql` → `sql/01_ddl.sql` → `sql/02_seed.sql` 순으로
+  DB 생성 직후 1회 자동 적재됩니다(`/opt/oracle/scripts/setup` 훅).
+- ⏱ **최초 기동은 10~20분** 걸립니다(XE가 Shift-JIS DB를 새로 만들고 스키마까지 적재). 이후 기동은 수십 초.
+  진행 확인: `docker logs -f oracle_sjis`
+- 예전에 쓰던 커스텀 Oracle 이미지(`Dockerfile.oracle-sjis` + `build-sjis-db.sh`의 `dbca` 재생성,
+  18.6GB·빌드 40분)는 **서버와 구성을 맞추면서 폐지**했습니다.
 
 ### ⚠️ 사전 준비물 (필수 — 깃에 없음)
 
@@ -76,14 +106,15 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 자세한 입수·버전 대응은 **`backend-cobol/docker/vendor/README.md`** 참조.
 
 > `sql/01_ddl.sql`·`02_seed.sql`은 JA16SJIS DB에 맞춘 **정상 타입(NUMBER/VARCHAR2/CHAR) + 일본어 리터럴**
-> 정본입니다. 커스텀 Oracle 이미지 빌드 시점에 구워지므로 컨테이너 기동 즉시 스키마·시드가 반영됩니다.
+> 정본입니다. `oracle_sjis` 최초 기동 시 `/opt/oracle/scripts/setup` 훅으로 자동 적재됩니다.
 > 조회 시 컬럼이 사람이 읽는 값(예: 山田太郎 / 523400)으로 그대로 보입니다(RAW/디코드 뷰 불필요).
 
 ---
 
 ## 4. 배포된 데모 서버 (라이브)
 
-COBOL 백엔드가 사내 리눅스 서버(Ubuntu)에 빌드·구동 중입니다 (온라인·10단계 배치 E2E 검증 완료).
+사내 리눅스 서버(Ubuntu)에 **COBOL(Shift-JIS)·Java(UTF-8) 두 스택이 함께** 구동 중입니다.
+구성 정본은 기밀 폴더의 `SERVER-SETUP.md` — 이 리포의 compose 도 그 구성과 동일하게 맞춰져 있습니다.
 
 ### 4.1 접속
 
@@ -95,9 +126,14 @@ COBOL 백엔드가 사내 리눅스 서버(Ubuntu)에 빌드·구동 중입니�
   ```bash
   ssh -i <SSH키> <계정>@<서버주소>
   ```
-- **웹/DB 포트** (Tailscale 망 내):
-  - 프론트+API: `http://<서버주소>:8090/`
-  - Oracle: `<서버주소>:1521` / 서비스 `FREEPDB1` / `minibank`(데모 비번, §8)
+- **웹/DB 포트** (Tailscale 망 또는 사내 LAN):
+  - COBOL 프론트+API: `http://<서버주소>:8092/`  (컨테이너 `mb-cobol-sjis`)
+  - Java API+프론트: `http://<서버주소>:8081/`   (컨테이너 `mbj-app`)
+  - Oracle(Shift-JIS): `<서버주소>:1522` / 서비스 **`XEPDB1`** / `minibank`(데모 비번, §8) — 컨테이너 `oracle_sjis`
+  - Java용 PostgreSQL: `<서버주소>:5434` / DB `minibank`
+  > ⚠️ 서버에는 **다른 프로젝트용 DB도 함께** 있습니다 — `oracle`(1521/`FREEPDB1`), `postgres`(5433/`bank_postgres`),
+  > `db2`(50000). 우리 것은 **1522/`XEPDB1`** 과 **5434/`minibank`** 입니다. 헷갈리지 마세요.
+  > 자세한 서버 구성·접속정보는 기밀 폴더의 `SERVER-SETUP.md`(공개 리포에 없음) 참조.
 - DB 조회 시 컬럼은 정상 타입(NUMBER/VARCHAR2/CHAR)이고, DBeaver 등에서 일본어가 **읽는 값 그대로** 표시됩니다(JDBC 드라이버가 JA16SJIS→클라이언트 변환 처리). 별도 디코드 뷰·함수는 없습니다.
 
 ### 4.2 배치 실행 (10단계 야간배치)
@@ -108,8 +144,8 @@ COBOL 백엔드가 사내 리눅스 서버(Ubuntu)에 빌드·구동 중입니�
 ```bash
 # 서버(SSH 접속 후). 로컬 Docker Desktop이면 'sudo' 빼고 동일.
 sudo docker exec -w /app/build \
-  -e ORA_CONN=oracle://oracle:1521/FREEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
-  mb-asis-backend \
+  -e ORA_CONN=oracle://oracle:1521/XEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
+  mb-cobol-sjis \
   sh -c 'mkdir -p data && sh run_batch.sh'
 # => [batch] all 10 steps done.
 ```
@@ -117,7 +153,7 @@ sudo docker exec -w /app/build \
 - 산출물은 컨테이너 내 `/app/build/data/` (예: `MEISAI.RPT`, `NIPPO.RPT`, `ZANDAKA.RPT`,
   `TESURYO.RPT`, `KYUMIN.RPT`, `KOUZA.LST`, `TOKEI.RPT`). 10단계 상세는 `backend-cobol/README.md` §5.
 - 5~10(帳票)은 읽기 전용. 3(YAKANBAT)은 당일거래가 있을 때만 이자를 가산(거래 0건이면 잔액 불변).
-- 리포트 확인 예: `sudo docker exec mb-asis-backend cat /app/build/data/TOKEI.RPT`
+- 리포트 확인 예: `sudo docker exec mb-cobol-sjis cat /app/build/data/TOKEI.RPT`
 - **Java 백엔드도 같은 帳票 7종을 파일로 냅니다** — `POST /api/batch/run` → `backend-java/data/`
   (`MEISAI.TXT` + 6종. 6종은 COBOL 서식 그대로).
 - **COBOL ↔ Java 1:1 값 대조**: `sh tools/parity/compare.sh` → `PARITY OK`.
@@ -129,8 +165,8 @@ sudo docker exec -w /app/build \
 
 ```bash
 sudo docker ps                                   # 컨테이너 상태
-sudo docker logs --tail 20 mb-asis-backend       # 백엔드 로그
-sudo docker restart mb-asis-backend              # 백엔드만 재기동(데이터 보존)
+sudo docker logs --tail 20 mb-cobol-sjis       # 백엔드 로그
+sudo docker restart mb-cobol-sjis              # 백엔드만 재기동(데이터 보존)
 ```
 
 ### 4.4 소스 갱신 후 재배포 (백엔드 이미지 재빌드)
@@ -143,23 +179,37 @@ Oracle 컨테이너(라이브 데이터)는 건드리지 않고 **백엔드 이�
 cd ~/minibank-demo && git pull
 #    ※ vendor 파일(깃에 없음)은 그대로 유지됨. 없으면 vendor/README.md 참고해 재배치.
 # 2) 이미지 재빌드 (★ 빌드 컨텍스트는 반드시 절대경로 — sudo 아래 ~ 는 /root)
-sudo docker build -f backend-cobol/docker/Dockerfile.asis -t mb-asis-backend:latest /home/<계정>/minibank-demo
-# 3) 컨테이너 교체 (기존 네트워크/포트/환경 유지)
-sudo docker rm -f mb-asis-backend
-sudo docker run -d --name mb-asis-backend --network mbnet -p 8090:80 \
-  -e ORA_USER=minibank -e ORA_PASS=minibank -e TZ=Asia/Tokyo \
-  --restart unless-stopped mb-asis-backend:latest
+sudo docker build -f backend-cobol/docker/Dockerfile.asis -t minibank-cobol-sjis:latest /home/<계정>/minibank-demo
+# 3) 컨테이너 교체
+#    ★서버는 oracle_sjis 의 '컨테이너 IP'로 직결한다★ 호스트 포워딩(1522) 경유는
+#      리스너 리다이렉트 때문에 멈춘다. oracle_sjis 재시작으로 IP가 바뀌면 이 절차를 다시 실행.
+IP=$(sudo docker inspect oracle_sjis --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+sudo docker rm -f mb-cobol-sjis
+sudo docker run -d --name mb-cobol-sjis --restart unless-stopped --add-host oracle:$IP -p 8092:80 \
+  -e ORA_CONN=oracle://$IP:1521/XEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
+  -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 -e TZ=Asia/Tokyo \
+  minibank-cobol-sjis:latest
+```
+
+> 🩺 **`{"ok":false,"error":"db_connect_failed"}` 가 나오면** 거의 항상 이 문제입니다 —
+> `oracle_sjis` 가 재시작되며 컨테이너 IP가 바뀌었는데 `mb-cobol-sjis` 가 옛 IP를 붙들고 있는 것.
+> 위 3) 을 다시 실행하면 복구됩니다. (Oracle 자체는 정상이므로 DBeaver 로는 조회가 됩니다.)
+
+**Java 스택 재배포**
+```bash
+cd ~/minibank-demo && sudo docker compose -f backend-java/compose.java.yml up -d --build
 ```
 
 ### 4.5 데이터 초기화 (시드 상태로 리셋)
 
-라이브 Oracle을 깨끗한 시드로 되돌립니다 (거래 삭제·잔액 원복). Oracle 컨테이너 내 sqlplus로 재적용:
+라이브 Oracle을 깨끗한 시드로 되돌립니다 (거래 삭제·잔액 원복).
+⚠️ `NLS_LANG` 주입 필수 — 없으면 시드의 일본어가 깨져 들어갑니다.
 
 ```bash
-sudo docker cp backend-cobol/sql/01_ddl.sql  oracle:/tmp/01_ddl.sql
-sudo docker cp backend-cobol/sql/02_seed.sql oracle:/tmp/02_seed.sql
-sudo docker exec -i oracle sqlplus -s /nolog @/tmp/01_ddl.sql  </dev/null   # 드롭/재생성
-sudo docker exec -i oracle sqlplus -s /nolog @/tmp/02_seed.sql </dev/null   # 재적재
+sudo docker cp backend-cobol/sql/01_ddl.sql  oracle_sjis:/tmp/01_ddl.sql
+sudo docker cp backend-cobol/sql/02_seed.sql oracle_sjis:/tmp/02_seed.sql
+sudo docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 oracle_sjis sqlplus -s /nolog @/tmp/01_ddl.sql  </dev/null   # 드롭/재생성
+sudo docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 oracle_sjis sqlplus -s /nolog @/tmp/02_seed.sql </dev/null   # 재적재
 # 확인: TORIHIKI=0, KOUZA=8
 ```
 
@@ -198,7 +248,7 @@ sudo docker exec -i oracle sqlplus -s /nolog @/tmp/02_seed.sql </dev/null   # �
    드라이버가 클라이언트 문자셋을 UTF-8로 강제하므로 DB는 디스크에 Shift-JIS, 앱/HTTP는 UTF-8입니다.
 3. **계좌번호 자릿수** — 프론트·DB 모두 7자리(`KOUZA_NO`)로 정합됨.
 4. **DDL/시드 정본** ✅ — `sql/01_ddl.sql`·`02_seed.sql`은 JA16SJIS DB용 정상 타입 스키마 + 일본어 리터럴 시드.
-   커스텀 Oracle 이미지(`docker/Dockerfile.oracle-sjis` + `oracle-sjis/`)가 빌드 시점에 구워 넣습니다.
+   `oracle_sjis` 최초 기동 시 `/opt/oracle/scripts/setup` 훅으로 자동 적재됩니다.
 5. **Java 전환 예정** — `backend-java/`는 온라인 9종 + 배치 이식 완료(PostgreSQL, UTF-8). 스키마는 전부
    정상 타입(integer/bigint/numeric/varchar/char/date), 일본어는 UTF-8 텍스트. (구 `codec` 패키지·jef4j
    의존성·디코드 뷰/함수·UTF-8 미러 컬럼은 제거됨.)

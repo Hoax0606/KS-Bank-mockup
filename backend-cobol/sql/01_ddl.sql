@@ -2,13 +2,13 @@
 --  ASIS Oracle DDL  -  KS銀行 ミニバンク・デモ  (Shift-JIS / 일반 타입)
 --  ★ 변경(2026-07-30): 메인프레임 RAW(JEF/COMP-3/존10진) 폐기 →
 --     텍스트=Shift-JIS VARCHAR2, 금액/키=NUMBER, 일자=CHAR(8) 로 정상화.
---     ※ DB 문자셋은 JA16SJIS 전제(컨테이너 생성 시 NLS_CHARACTERSET=JA16SJIS).
+--     ※ DB 문자셋은 JA16SJISTILDE 전제(oracle_sjis 생성 시 ORACLE_CHARACTERSET=JA16SJISTILDE).
 --       VARCHAR2에 일본어를 넣으면 디스크에 Shift-JIS로 저장됨.
 --  실행순: 01_ddl.sql -> 02_seed.sql
 -- ============================================================
 
 -- gvenzl은 initdb.d를 SYSTEM으로 실행하므로 명시적으로 minibank에 접속.
-CONNECT minibank/minibank@//localhost:1521/FREEPDB1
+CONNECT minibank/minibank@//localhost:1521/XEPDB1
 
 -- ------------------------------------------------------------
 --  재실행 가능하도록 기존 오브젝트 제거 (RAW판 뷰/함수 포함)

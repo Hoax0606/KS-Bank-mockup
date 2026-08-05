@@ -53,5 +53,5 @@ docker compose -f backend-cobol/docker/compose.asis.yml build \
 ```bash
 # リポジトリルートで
 docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
-# → http://localhost:8080/
+# → http://localhost:8092/
 ```

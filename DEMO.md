@@ -24,7 +24,7 @@
 
 ### 옵션 A. 라이브 서버 (제일 쉬움 · 설치 필요 없음) ⭐추천
 1. 사내 **Tailscale**를 켜고 로그인 (권한은 담당자에게 요청)
-2. 브라우저에서 접속: **`http://<서버주소>:8090/`**
+2. 브라우저에서 접속: **`http://<서버주소>:8092/`** (COBOL 화면) / **`http://<서버주소>:8081/`** (Java 화면)
    - 서버주소는 담당자에게 문의 (보안상 문서에 안 적음)
 3. 바로 §2 로그인으로.
 
@@ -35,7 +35,7 @@
 ```bash
 # 먼저 backend-cobol/docker/vendor/README.md 보고 Oracle Instant Client·GixSQL 다운로드
 docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
-# → http://localhost:8080/
+# → http://localhost:8092/   (COBOL. 최초 기동은 Oracle XE 초기화로 10~20분)
 ```
 
 **B-2) Java 백엔드** — 준비물 없이 바로 됨 (가장 간단)
@@ -95,8 +95,8 @@ docker compose -f backend-java/compose.java.yml up -d --build
 화면만 보면 평범하니, **두 DB의 문자셋이 다름**(Oracle=Shift-JIS / PostgreSQL=UTF-8)을 보여주면 임팩트가 있습니다.
 
 1. **DBeaver**(또는 아무 DB 툴)로 접속
-   - COBOL판: Oracle `<서버>:1521 / FREEPDB1`, 계정 `minibank / minibank` (문자셋 JA16SJIS)
-   - Java판: PostgreSQL `localhost:5433 / minibank`, 계정 `minibank / minibank` (문자셋 UTF-8)
+   - COBOL판: Oracle `<서버 또는 localhost>:1522 / XEPDB1`, 계정 `minibank / minibank` (문자셋 JA16SJISTILDE)
+   - Java판: PostgreSQL `<서버 또는 localhost>:5434 / minibank`, 계정 `minibank / minibank` (문자셋 UTF-8)
 2. `KOUZA` 테이블 조회 → 명의(山田太郎)·금액(523400)이 **정상 타입 컬럼**(VARCHAR2/NUMBER · varchar/bigint)에 읽는 값 그대로 저장돼 있음
 3. 설명: "화면·앱은 UTF-8로 통신하지만, Oracle DB는 디스크에 **Shift-JIS(JA16SJIS)** 로, PostgreSQL은 **UTF-8** 로 저장합니다. 드라이버가 문자셋 변환을 처리해 어느 쪽이든 일본어가 깨지지 않고 표시됩니다."
    - (Oracle에서 실제 저장 바이트를 보고 싶으면 `SELECT DUMP(meigi_kanji) FROM kouza;` 로 Shift-JIS 바이트를 확인할 수 있음.)
@@ -126,7 +126,9 @@ sh tools/parity/compare.sh     # => PARITY OK  (帳票 7종 diff 무차이)
 ## 6. 막히면 / 문의
 
 - 접속 안 됨(라이브): Tailscale 로그인 상태·서버주소 확인 → 담당자 문의
-- 로컬이 안 뜸: Docker Desktop 실행 여부 확인, 포트(8080/8081/5433/1521) 충돌 확인
+- 로컬이 안 뜸: Docker Desktop 실행 여부 확인, 포트(8092/8081/5434/1522) 충돌 확인
+- COBOL 화면은 뜨는데 API가 `db_connect_failed`: Oracle 기동 대기 중이거나(최초 10~20분),
+  서버라면 `oracle_sjis` 컨테이너 IP가 바뀐 것 → `README.md` §4.4 의 3) 재실행
 - 그 외 전부: **담당자 seoyeong (seoyeong.jeong@ks-infosys.com)**
 
 > ⚠️ 이 저장소는 공개(public)입니다. 서버 주소·접속 키·실제 비밀번호 등 민감정보는 문서에 적지 말고 담당자에게 직접 받으세요.

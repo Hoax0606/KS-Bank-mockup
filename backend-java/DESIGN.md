@@ -198,7 +198,7 @@ sh tools/parity/compare.sh
 - **① DB 직접 대조**가 "DB에 똑같은 값이 올라갔는가"의 직접 증거다. `KOUZA`(8행: 계좌·명의漢字·명의カナ·
   종별·개설일·상태·잔액)와 `TORIHIKI`(8행: ID·계좌·일시·구분·금액·상대·수수료·적요)를 파이프 구분 문자열로
   뽑아 비교한다. 숫자는 `TO_CHAR`/캐스팅으로 방언 차이를 없애고 NULL은 `-`로 통일한다.
-  ⚠️ Oracle 조회 시 **`NLS_LANG=AMERICAN_AMERICA.AL32UTF8` 주입 필수** — `mb-oracle` 컨테이너에는
+  ⚠️ Oracle 조회 시 **`NLS_LANG=AMERICAN_AMERICA.AL32UTF8` 주입 필수** — `oracle_sjis` 컨테이너에는
   `NLS_LANG`이 없어서 sqlplus가 JA16SJIS→클라이언트 변환에서 일본어를 `?`로 깨뜨린다(데이터는 정상).
 - **② 帳票 대조**는 그 값을 읽어 만든 산출물까지 같은지 본다.
 - **음성 대조군 확인**: PG 잔액을 1원만 틀리게 하면 ①이 즉시 그 줄을 잡아낸다(거짓 통과가 아님을 실증).

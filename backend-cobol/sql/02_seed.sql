@@ -1,12 +1,12 @@
 -- ============================================================
 --  ASIS Oracle SEED  -  KS銀行 ミニバンク・デモ  (Shift-JIS / 일반 타입)
---  ★ 일본어를 리터럴로 직접 INSERT. DB 문자셋 JA16SJIS 전제.
+--  ★ 일본어를 리터럴로 직접 INSERT. DB 문자셋 JA16SJISTILDE 전제.
 --     이 파일은 UTF-8 로 저장돼 있으므로, 적재 시 NLS_LANG=.AL32UTF8 로
---     sqlplus 를 돌려 UTF-8→JA16SJIS 변환이 일어나게 할 것(entrypoint에서 처리).
+--     sqlplus 를 돌려 UTF-8→JA16SJISTILDE 변환이 일어나게 할 것(entrypoint에서 처리).
 --  실행순: 01_ddl.sql -> 02_seed.sql
 -- ============================================================
 
-CONNECT minibank/minibank@//localhost:1521/FREEPDB1
+CONNECT minibank/minibank@//localhost:1521/XEPDB1
 
 -- 振込先金融機関マスタ
 INSERT INTO BANK_ASIS (BANK_ID,NAME,COLOR,TEXT_COLOR,MARK) VALUES (1,'KS銀行','#ffcc00','#1a3a6b','KS');

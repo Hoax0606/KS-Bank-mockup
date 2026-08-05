@@ -6,7 +6,7 @@
 # ============================================================
 set -e
 
-: "${ORA_CONN:=oracle://oracle:1521/FREEPDB1}"
+: "${ORA_CONN:=oracle://oracle:1521/XEPDB1}"
 : "${ORA_USER:=minibank}"
 : "${ORA_PASS:=minibank}"
 # DB는 JA16SJIS 저장이나 GixSQL 드라이버가 취득 시 UTF-8로 강제 변환한다

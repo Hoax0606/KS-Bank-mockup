@@ -1,5 +1,5 @@
 -- ============================================================
---  パリティ固定データ (Oracle / JA16SJIS)  —  COBOL↔Java 1:1 対照専用
+--  パリティ固定データ (Oracle / JA16SJISTILDE)  —  COBOL↔Java 1:1 対照専用
 --
 --  ☠☠☠ 本番/デモサーバの Oracle では絶対に実行しないこと ☠☠☠
 --    冒頭で DELETE FROM TORIHIKI(全件削除)を行い、残高もシード値へ戻す。
@@ -27,7 +27,7 @@
 --  実行: sqlplus -s /nolog @90_parity_fixture.sql
 -- ============================================================
 
-CONNECT minibank/minibank@//localhost:1521/FREEPDB1
+CONNECT minibank/minibank@//localhost:1521/XEPDB1
 
 SET FEEDBACK OFF
 

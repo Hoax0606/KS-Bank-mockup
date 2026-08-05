@@ -34,11 +34,15 @@
 - 빌드: `build/Makefile`의 `MODS`는 이제 `CGIINIT CGIPARM CGIRESP`만 포함(`EBCDIG`/`RAWUTF8` 제외).
   `Dockerfile.asis`는 `JEFCONV.so`(gcc)·`JefServer`(javac)를 더 이상 컴파일하지 않고 JDK/openjdk도 설치 안 함.
 
-**DDL/시드 = JA16SJIS 정상 타입 정본** ✅
-`sql/01_ddl.sql`·`02_seed.sql`은 JA16SJIS DB용 **정상 타입 스키마 + 일본어 리터럴 시드**입니다.
-커스텀 Oracle 이미지(`docker/Dockerfile.oracle-sjis` + `oracle-sjis/build-sjis-db.sh`·`mkuser.sql`)가
-공식 Oracle Free 이미지를 받아 **빌드 시점**에 `dbca -characterSet JA16SJIS`로 DB를 재생성하고 스키마+시드를
-구워 넣습니다(재기동 시 SAVE STATE로 자동 오픈). `compose.asis.yml`의 `oracle` 서비스가 이 이미지를 빌드합니다.
+**DDL/시드 = Shift-JIS 정상 타입 정본** ✅
+`sql/01_ddl.sql`·`02_seed.sql`은 Shift-JIS DB용 **정상 타입 스키마 + 일본어 리터럴 시드**입니다.
+`oracle_sjis`(서버와 동일한 `limslee/oracle-database-xe:21.3.0`)가 **최초 기동 시**
+`/opt/oracle/scripts/setup` 훅으로 `00_mkuser.sql` → `01_ddl.sql` → `02_seed.sql` 을 1회 자동 적재합니다
+(이미지 빌드 불필요). 스키마를 바꾸면 **`docker compose ... down -v` 후 재기동**해야 다시 적재됩니다.
+
+> 📌 컨테이너명·포트·PDB명(`XEPDB1`)·문자셋(`JA16SJISTILDE`)은 **`SERVER-SETUP.md` §3 의 서버 구성과
+> 동일**하게 맞춰져 있습니다. 예전의 커스텀 Oracle 이미지(`Dockerfile.oracle-sjis` + `dbca` 재생성,
+> 18.6GB·빌드 40분)는 폐지했습니다.
 
 **배치**(§5)는 실거래 연동 방식(옵션1): 온라인 CGI가 이미 실시간 반영하므로, 배치는 재INSERT 없이
 명세 생성 + 이자 가산만 담당(普通 종별만, `floor(잔액/365000)`). 플랫파일은 이제 **네이티브**
@@ -81,7 +85,7 @@ backend-cobol/
     copy/*.cpy       # カピブック(レコード/CGI/DB/手続き)
   sql/              # 01_ddl.sql / 02_seed.sql / 99_reset.sql (JA16SJIS・正常型)
   build/Makefile    # gixpp -> cobc
-  docker/           # Dockerfile.asis / Dockerfile.oracle-sjis / oracle-sjis/ / compose.asis.yml / entrypoint.sh
+  docker/           # Dockerfile.asis / compose.asis.yml / entrypoint.sh / oracle-sjis/setup/(초기화 SQL)
   cgi/nginx-cgi.conf
   data/             # TORIHIKI.DAT(生成) / MEISAI.RPT(バッチ出力)
 ```
@@ -139,16 +143,20 @@ backend-cobol/
 docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 ```
 
-- `oracle`(**JA16SJIS カスタムイメージ**, 1521): `docker/Dockerfile.oracle-sjis`(+`oracle-sjis/build-sjis-db.sh`・`mkuser.sql`)が公式 Oracle Free イメージを `dbca -characterSet JA16SJIS` で再生成し、スキーマ+シード(`01_ddl.sql`→`02_seed.sql`)をビルド時に焼き込む(再起動時 SAVE STATE で自動オープン)。
-- `asis-backend`(nginx + fcgiwrap + CGI, 8080→80): フロントを `/` 配信、API は `/api/...`。JEF 常駐サービス(旧 9099)は起動しない。
-- ブラウザ: `http://localhost:8080/`
+- `oracle_sjis`(**Oracle XE 21c**, 1522→1521, PDB `XEPDB1`, 文字セット **JA16SJISTILDE**):
+  サーバ(`SERVER-SETUP.md` §3-1)と同じ `limslee/oracle-database-xe:21.3.0` をそのまま使う(ビルド不要)。
+  ⚠️ このイメージは既定が `AL32UTF8` なので compose が `ORACLE_CHARACTERSET: JA16SJISTILDE` を**明示**する。
+  スキーマ+シードは初回起動時に `/opt/oracle/scripts/setup` フック(`00_mkuser.sql`→`01_ddl.sql`→`02_seed.sql`)で1回だけ自動投入。
+  ⏱ 初回起動は DB 作成込みで 10〜20分。進捗は `docker logs -f oracle_sjis`。
+- `mb-cobol-sjis`(nginx + fcgiwrap + CGI, 8092→80): フロントを `/` 配信、API は `/api/...`。JEF 常駐サービス(旧 9099)は起動しない。
+- ブラウザ: `http://localhost:8092/`
 
 > **前提物**: `backend-cobol/docker/vendor/` に Oracle Instant Client(basiclite+sdk) と
 > GixSQL ソース `gixsql-1.0.20b.tar.gz` を配置してください(再配布条件のため同梱せず)。
 > 入手方法は `backend-cobol/docker/vendor/README.md` 参照。
 
 > **動作確認済み**(GnuCOBOL 3.1.2 + GixSQL 1.0.20b + Oracle Free 23 JA16SJIS / Docker):
-> オンライン全 API・夜間バッチをエンドツーエンドで確認。`http://localhost:8080/` でフロントも配信。
+> オンライン全 API・夜間バッチをエンドツーエンドで確認。`http://localhost:8092/` でフロントも配信。
 > DB は Shift-JIS 保存、アプリ/HTTP は UTF-8(ドライバがクライアント文字セットを UTF-8 に強制)。
 >
 > **ビルド内実装メモ**(GixSQL/GnuCOBOL の癖への対応):
@@ -198,9 +206,9 @@ make GIXHOME=/opt/gixsql          # gixpp -> cobc。bin/*.cgi, bin/YAKANBAT, lib
 
 ```bash
 # コンテナ内で(exec シェルには entrypoint の ORA_* が無いので注入)
-docker exec -w /app/build \
-  -e ORA_CONN=oracle://oracle:1521/FREEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
-  mb-asis-backend sh -c 'mkdir -p data; sh run_batch.sh'
+docker exec -i \
+  -e ORA_CONN=oracle://oracle:1521/XEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
+  mb-cobol-sjis sh -c 'cd /app/build && mkdir -p data && sh run_batch.sh'
 # => [batch] all 10 steps done.
 ```
 
@@ -220,9 +228,9 @@ sh tools/parity/compare.sh
 - **DB テーブル直接対照**(KOUZA 8行 / TORIHIKI 8行)+ **帳票7種**の2段構えで比較する。
   前者が「DB に同じ値が入ったか」の直接証拠。
 - ⚠️ Oracle を sqlplus で照会するときは **`NLS_LANG=AMERICAN_AMERICA.AL32UTF8` の注入が必須**。
-  `mb-oracle` コンテナには `NLS_LANG` が無いため、既定のままだと JA16SJIS→クライアント文字セット
+  `oracle_sjis` コンテナの既定のままだと JA16SJISTILDE→クライアント文字セット
   変換で日本語が `?` に化ける(データ自体は正常)。
-  例: `docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 mb-oracle sqlplus -s ...`
+  例: `docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 oracle_sjis sqlplus -s ...`
 
 - 固定データは `sql/90_parity_fixture.sql`(Oracle)と `backend-java/.../db/90_parity_fixture.sql`(PostgreSQL)。
   **オンライン取引で対照データを作ってはいけない** — `TORIHIKI_DT` が挿入時刻(wall-clock)で、その値が
@@ -237,7 +245,7 @@ sh tools/parity/compare.sh
 ## 6. リセット(§3.3)
 
 ```bash
-sqlplus minibank/minibank@//localhost:1521/FREEPDB1 @backend-cobol/sql/99_reset.sql
+docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 oracle_sjis \n  sqlplus -s minibank/minibank@//localhost:1521/XEPDB1 < backend-cobol/sql/99_reset.sql
 ```
 動的帯域(`KOUZA_NO >= 9000001`, 開設で採番)とその取引のみ削除。固定口座は保存。
 
@@ -298,4 +306,4 @@ SELECT KOUZA_NO, DUMP(MEIGI_KANJI) FROM KOUZA;                          -- 格�
 | バッチ(反映 + 利息) | `cobol/YAKANBAT.cbl` |
 | CGI 共通 | `cobol/CGIUTIL.cbl`(CGIINIT/CGIPARM/CGIRESP) |
 | DDL/シード/リセット | `sql/01_ddl.sql` `02_seed.sql` `99_reset.sql` |
-| Oracle JA16SJIS イメージ | `docker/Dockerfile.oracle-sjis` `docker/oracle-sjis/build-sjis-db.sh` `docker/oracle-sjis/mkuser.sql` |
+| Oracle 初期化 SQL | `docker/oracle-sjis/setup/00_mkuser.sql`(+ `sql/01_ddl.sql`・`sql/02_seed.sql` を compose がマウント) |

@@ -4,7 +4,7 @@
 --   시연/테스트용 고정계좌(1000000~6999999)는 보존.
 -- ============================================================
 
-CONNECT minibank/minibank@//localhost:1521/FREEPDB1
+CONNECT minibank/minibank@//localhost:1521/XEPDB1
 
 -- 1) 動的口座と関連取引を削除 (FK 순서: TORIHIKI -> KOUZA_EXT -> KOUZA)
 DELETE FROM TORIHIKI

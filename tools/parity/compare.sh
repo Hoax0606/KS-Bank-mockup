@@ -35,11 +35,14 @@
 # ============================================================
 set -e
 
-COBOL_APP="${COBOL_APP:-mb-asis-backend}"
-COBOL_ORA="${COBOL_ORA:-mb-oracle}"
+# 컨테이너명·접속정보는 SERVER-SETUP.md §3-1/§3-2 기준. 환경변수로 덮어쓸 수 있다.
+COBOL_APP="${COBOL_APP:-mb-cobol-sjis}"
+COBOL_ORA="${COBOL_ORA:-oracle_sjis}"
 JAVA_PG="${JAVA_PG:-mbj-postgres}"
 JAVA_URL="${JAVA_URL:-http://localhost:8081}"
-ORA_CONN="${ORA_CONN:-oracle://oracle:1521/FREEPDB1}"
+ORA_CONN="${ORA_CONN:-oracle://oracle:1521/XEPDB1}"
+# sqlplus 접속문자열(컨테이너 내부에서 실행). 서버에서 돌릴 때도 이것만 바꾸면 된다.
+ORA_DSN="${ORA_DSN:-minibank/minibank@//localhost:1521/XEPDB1}"
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$ROOT/tools/parity/out"
@@ -48,11 +51,11 @@ TABLES="KOUZA TORIHIKI"
 
 say() { printf '\n=== %s\n' "$1"; }
 
-#  Oracle 쪽 조회. ★NLS_LANG 주입 필수★ — mb-oracle 컨테이너에는 NLS_LANG 이 없어서
-#  sqlplus 가 JA16SJIS -> 클라이언트 문자셋 변환에서 일본어를 '?' 로 깨뜨린다(데이터는 정상).
+#  Oracle 쪽 조회. ★NLS_LANG 주입 필수★ — 미지정이면 sqlplus 가
+#  JA16SJISTILDE -> 클라이언트 문자셋 변환에서 일본어를 '?' 로 깨뜨린다(데이터는 정상).
 ora_sql() {
   docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 "$COBOL_ORA" \
-    sqlplus -s "minibank/minibank@//localhost:1521/FREEPDB1"
+    sqlplus -s "$ORA_DSN"
 }
 pg_sql() { docker exec -i "$JAVA_PG" psql -U minibank -d minibank -At; }
 
@@ -86,7 +89,7 @@ say "1/7  픽스처 적용 (Oracle)"
 #    'minibank/...' 는 상대경로처럼 보여 변환되지 않는다.
 #    (스크립트 안의 CONNECT 문이 다시 접속하므로 중복 접속은 무해)
 docker exec -i "$COBOL_ORA" \
-  sqlplus -s "minibank/minibank@//localhost:1521/FREEPDB1" \
+  sqlplus -s "$ORA_DSN" \
   < "$ROOT/backend-cobol/sql/90_parity_fixture.sql" \
   > "$OUT/fixture_oracle.log" 2>&1
 tail -8 "$OUT/fixture_oracle.log"
@@ -95,7 +98,7 @@ if grep -qE '^(ORA|SP2)-' "$OUT/fixture_oracle.log"; then
   echo "  !! Oracle 픽스처에 오류 — $OUT/fixture_oracle.log 확인"; exit 1
 fi
 ora_cnt=$(docker exec -i "$COBOL_ORA" \
-  sqlplus -s "minibank/minibank@//localhost:1521/FREEPDB1" <<'SQL' | tr -d ' \t\r\n'
+  sqlplus -s "$ORA_DSN" <<'SQL' | tr -d ' \t\r\n'
 SET PAGES 0 FEED OFF
 SELECT COUNT(*) FROM TORIHIKI;
 EXIT
