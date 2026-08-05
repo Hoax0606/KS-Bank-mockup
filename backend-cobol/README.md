@@ -213,8 +213,16 @@ docker exec -w /app/build \
 ### Java 版との 1:1 値対照
 
 ```bash
-sh tools/parity/compare.sh      # => PARITY OK  もしくは 最初の不一致箇所の diff
+sh tools/parity/compare.sh
+# => PARITY OK   DB 2/2 (KOUZA·TORIHIKI) + 帳票 7/7  전부 일치
 ```
+
+- **DB テーブル直接対照**(KOUZA 8行 / TORIHIKI 8行)+ **帳票7種**の2段構えで比較する。
+  前者が「DB に同じ値が入ったか」の直接証拠。
+- ⚠️ Oracle を sqlplus で照会するときは **`NLS_LANG=AMERICAN_AMERICA.AL32UTF8` の注入が必須**。
+  `mb-oracle` コンテナには `NLS_LANG` が無いため、既定のままだと JA16SJIS→クライアント文字セット
+  変換で日本語が `?` に化ける(データ自体は正常)。
+  例: `docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 mb-oracle sqlplus -s ...`
 
 - 固定データは `sql/90_parity_fixture.sql`(Oracle)と `backend-java/.../db/90_parity_fixture.sql`(PostgreSQL)。
   **オンライン取引で対照データを作ってはいけない** — `TORIHIKI_DT` が挿入時刻(wall-clock)で、その値が

@@ -2,8 +2,12 @@
 # ============================================================
 #  COBOL ↔ Java 야간배치 1:1 값 대조 하네스
 #
-#  픽스처 적용 → 양쪽 배치 실행 → 帳票 7종 정규화 → diff
+#  픽스처 적용 → 양쪽 배치 실행 → ① DB 테이블 직접 대조(KOUZA/TORIHIKI)
+#                              → ② 帳票 7종 정규화 후 대조
 #  전부 호스트에서 수행한다(컨테이너에 도구를 추가하지 않는다).
+#
+#  ①이 "DB 에 똑같은 값이 올라갔는가"의 직접 증거이고,
+#  ②는 그 값을 읽어 만든 산출물까지 같은지 보는 것이다.
 #
 #  실행 (리포지토리 루트에서):
 #      sh tools/parity/compare.sh
@@ -39,9 +43,21 @@ ORA_CONN="${ORA_CONN:-oracle://oracle:1521/FREEPDB1}"
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$ROOT/tools/parity/out"
-FILES="MEISAI.TXT NIPPO.RPT ZANDAKA.RPT TESURYO.RPT KYUMIN.RPT KOUZA.LST TOKEI.RPT"
+FILES="MEISAI.TXT NIPPO.RPT ZANDAKA.RPT TESURYO.RPT KYUMIN.RPT TOKEI.RPT KOUZA.LST"
+TABLES="KOUZA TORIHIKI"
 
 say() { printf '\n=== %s\n' "$1"; }
+
+#  Oracle 쪽 조회. ★NLS_LANG 주입 필수★ — mb-oracle 컨테이너에는 NLS_LANG 이 없어서
+#  sqlplus 가 JA16SJIS -> 클라이언트 문자셋 변환에서 일본어를 '?' 로 깨뜨린다(데이터는 정상).
+ora_sql() {
+  docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 "$COBOL_ORA" \
+    sqlplus -s "minibank/minibank@//localhost:1521/FREEPDB1"
+}
+pg_sql() { docker exec -i "$JAVA_PG" psql -U minibank -d minibank -At; }
+
+#  줄끝 공백/CR 제거 + 빈 줄 제거(sqlplus 는 앞뒤로 빈 줄을 낸다)
+norm_rows() { sed -e 's/\r$//' -e 's/[[:space:]]*$//' -e '/^$/d' "$1"; }
 
 #  실제로 동작하는 Python 3 을 고른다.
 #  ★Windows 에서 'python3' 은 Microsoft Store 앱 실행 별칭(스텁)일 수 있고, 그 경우
@@ -62,7 +78,7 @@ PY="$(pick_python)" || { echo "동작하는 Python 3 이 없습니다 (\$PYTHON 
 rm -rf "$OUT"; mkdir -p "$OUT/cobol" "$OUT/java" "$OUT/raw"
 
 # ------------------------------------------------------------
-say "1/6  픽스처 적용 (Oracle)"
+say "1/7  픽스처 적용 (Oracle)"
 #  스크립트를 stdin 으로 직접 먹인다 — 컨테이너에 파일을 두지 않으므로
 #  Oracle 이미지의 /tmp 권한 문제를 피한다.
 #  ★접속정보를 인수로 넘기는 이유: '/nolog' 는 '/' 로 시작하는 단독 인수라
@@ -88,25 +104,72 @@ SQL
 echo "  TORIHIKI=$ora_cnt (expect 8)"
 [ "$ora_cnt" = "8" ] || { echo "  !! Oracle 픽스처 미적용"; exit 1; }
 
-say "2/6  픽스처 적용 (PostgreSQL)"
+say "2/7  픽스처 적용 (PostgreSQL)"
 docker exec -i "$JAVA_PG" psql -U minibank -d minibank -q -v ON_ERROR_STOP=1 \
   < "$ROOT/backend-java/src/main/resources/db/90_parity_fixture.sql" \
   > "$OUT/fixture_pg.log" 2>&1
 tail -12 "$OUT/fixture_pg.log"
 
 # ------------------------------------------------------------
-say "3/6  COBOL 배치 실행 (10 스텝)"
+say "3/7  COBOL 배치 실행 (10 스텝)"
 #  ORA_* 주입 필수 — docker exec 셸은 entrypoint 의 export 를 상속하지 않는다
 docker exec -i \
   -e ORA_CONN="$ORA_CONN" -e ORA_USER=minibank -e ORA_PASS=minibank \
   "$COBOL_APP" sh -c 'cd /app/build && mkdir -p data && sh run_batch.sh'
 
-say "4/6  Java 배치 실행"
+say "4/7  Java 배치 실행"
 curl -sS -X POST "$JAVA_URL/api/batch/run" -o "$OUT/java_batch.json"
 echo "  -> $OUT/java_batch.json"
 
 # ------------------------------------------------------------
-say "5/6  帳票 정규화"
+say "5/7  DB 직접 대조 (KOUZA / TORIHIKI)"
+#  "DB 에 올라가는 값이 같은가" 를 帳票 경유가 아니라 테이블에서 직접 확인한다.
+#  숫자는 TO_CHAR/캐스팅으로 방언 차이를 없애고, NULL 은 '-' 로 통일한다.
+ora_sql > "$OUT/raw/ora_KOUZA.txt" 2>&1 <<'SQL'
+SET PAGES 0 FEED OFF HEAD OFF TRIMS ON LIN 400
+SELECT TO_CHAR(KOUZA_NO)||'|'||MEIGI_KANJI||'|'||MEIGI_KANA||'|'||SHUBETSU||'|'
+       ||KAISETSU_BI||'|'||JOUTAI||'|'||TO_CHAR(ZANDAKA)
+  FROM KOUZA ORDER BY KOUZA_NO;
+EXIT
+SQL
+pg_sql > "$OUT/raw/pg_KOUZA.txt" 2>&1 <<'SQL'
+SELECT kouza_no||'|'||meigi_kanji||'|'||meigi_kana||'|'||shubetsu||'|'
+       ||kaisetsu_bi||'|'||joutai||'|'||zandaka
+  FROM kouza ORDER BY kouza_no;
+SQL
+
+ora_sql > "$OUT/raw/ora_TORIHIKI.txt" 2>&1 <<'SQL'
+SET PAGES 0 FEED OFF HEAD OFF TRIMS ON LIN 400
+SELECT TO_CHAR(TORIHIKI_ID)||'|'||TO_CHAR(KOUZA_NO)||'|'||TORIHIKI_DT||'|'
+       ||TORIHIKI_KBN||'|'||TO_CHAR(KINGAKU)||'|'||NVL(TO_CHAR(AITE_KOUZA),'-')
+       ||'|'||NVL(TO_CHAR(TESURYO),'-')||'|'||NVL(TEKIYOU,'-')
+  FROM TORIHIKI ORDER BY KOUZA_NO, TORIHIKI_ID;
+EXIT
+SQL
+pg_sql > "$OUT/raw/pg_TORIHIKI.txt" 2>&1 <<'SQL'
+SELECT torihiki_id||'|'||kouza_no||'|'||torihiki_dt||'|'||torihiki_kbn||'|'
+       ||kingaku||'|'||COALESCE(aite_kouza::text,'-')||'|'
+       ||COALESCE(tesuryo::text,'-')||'|'||COALESCE(tekiyou,'-')
+  FROM torihiki ORDER BY kouza_no, torihiki_id;
+SQL
+
+db_rc=0
+for t in $TABLES; do
+  norm_rows "$OUT/raw/ora_$t.txt" > "$OUT/cobol/$t.rows"
+  norm_rows "$OUT/raw/pg_$t.txt"  > "$OUT/java/$t.rows"
+  n=$(wc -l < "$OUT/cobol/$t.rows" | tr -d ' ')
+  if [ "$n" -eq 0 ]; then
+    db_rc=1; echo "  FAIL  $t  (Oracle 조회 결과 0행 — $OUT/raw/ora_$t.txt 확인)"
+  elif diff -u "$OUT/cobol/$t.rows" "$OUT/java/$t.rows" > "$OUT/DB_$t.diff"; then
+    rm -f "$OUT/DB_$t.diff"; echo "  OK    $t  ($n 행 완전 일치)"
+  else
+    db_rc=1; echo "  DIFF  $t  -> $OUT/DB_$t.diff"
+    sed -n '1,20p' "$OUT/DB_$t.diff" | sed 's/^/        /'
+  fi
+done
+
+# ------------------------------------------------------------
+say "6/7  帳票 정규화"
 #  COBOL: 컨테이너에서 tar 로 반출 → MEISAI.RPT 만 디코드
 docker exec -i "$COBOL_APP" sh -c 'cd /app/build/data && tar cf - .' \
   | tar xf - -C "$OUT/raw"
@@ -132,7 +195,7 @@ echo "  MEISAI.RPT ${bytes} bytes / ${lines} recs (expect 98 x ${lines} = $((98 
 [ "$bytes" -eq $((98 * lines)) ] || { echo "  !! 98byte 고정길이 위반"; exit 1; }
 
 # ------------------------------------------------------------
-say "6/6  diff"
+say "7/7  帳票 diff"
 rc=0
 for f in $FILES; do
   if diff -u "$OUT/cobol/$f" "$OUT/java/$f" > "$OUT/$f.diff"; then
@@ -146,9 +209,10 @@ for f in $FILES; do
 done
 
 echo
-if [ "$rc" -eq 0 ]; then
-  echo "PARITY OK  (7/7 identical)"
-else
-  echo "PARITY FAILED — 위 diff 확인"
+if [ "$db_rc" -eq 0 ] && [ "$rc" -eq 0 ]; then
+  echo "PARITY OK   DB 2/2 (KOUZA·TORIHIKI) + 帳票 7/7  전부 일치"
+  exit 0
 fi
-exit "$rc"
+[ "$db_rc" -eq 0 ] || echo "PARITY FAILED — DB 값 불일치 ($OUT/DB_*.diff)"
+[ "$rc" -eq 0 ]    || echo "PARITY FAILED — 帳票 불일치 ($OUT/*.diff)"
+exit 1
