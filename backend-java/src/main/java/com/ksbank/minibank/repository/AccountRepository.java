@@ -73,7 +73,8 @@ public class AccountRepository {
 
     private static final String DETAIL_SQL = """
         SELECT k.meigi_kanji, k.meigi_kana, k.shubetsu, k.joutai, k.zandaka,
-               e.acct_type, e.branch_code, e.is_primary
+               e.acct_type, e.branch_code, e.is_primary,
+               e.birth, e.sex, e.zip, e.addr, e.phone, e.email, e.job
           FROM kouza k
           JOIN kouza_ext e ON e.kouza_no = k.kouza_no
          WHERE k.kouza_no = ?
@@ -116,7 +117,9 @@ public class AccountRepository {
             rs -> rs.next()
                 ? Optional.of(new AccountDetail(
                     rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getLong(5),
-                    rs.getString(6), rs.getString(7), rs.getString(8)))
+                    rs.getString(6), rs.getString(7), rs.getString(8),
+                    rs.getString(9), rs.getString(10), rs.getString(11), rs.getString(12),
+                    rs.getString(13), rs.getString(14), rs.getString(15)))
                 : Optional.empty());
     }
 }

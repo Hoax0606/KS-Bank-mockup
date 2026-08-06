@@ -69,10 +69,11 @@ function esc(s) {
 function fmtYen(n) { return '¥' + Math.round(Number(n) || 0).toLocaleString('ja-JP'); }
 
 /* ---- event registry: rebuilt fresh every render() call ---- */
-var REG = { click: {}, change: {} };
+var REG = { click: {}, change: {}, submit: {} };
 var _uid = 0;
 function onClick(fn) { var id = 'c' + (++_uid); REG.click[id] = fn; return id; }
 function onChange(fn) { var id = 'h' + (++_uid); REG.change[id] = fn; return id; }
+function onSubmit(fn) { var id = 's' + (++_uid); REG.submit[id] = fn; return id; }
 
 /* ============================================================
    Data model
@@ -314,9 +315,20 @@ App.doLogin = function () {
         balance: Number(d.zandaka) || 0, bcode: b, pw: p,
         status: (String(d.joutai) === '9' ? '凍結' : '正常')
       });
-      if (idx >= 0) accts[idx] = acc; else accts.push(acc);
-      App.setState({ accounts: accts, isLoggedIn: true, me: acc.no, page: 'home', pageStack: [], loginErr: null, loginPw: '', repAcct: acc.no, ownNos: [acc.no], homeView: acc.no, meisaiAcct: null });
-      App.loadNotices();
+      // 会員情報(生年月日・住所等)は holdings が KOUZA_EXT から取得する。
+      // 실패해도 로그인 자체는 진행(있던 prof 유지, 없으면 빈 값 → 화면에 "—" 표시).
+      return fetch('/api/holdings?kouza=' + encodeURIComponent(a))
+        .then(function (r) { return r.json(); })
+        .then(function (hd) {
+          var h = (hd && hd.ok && hd.holdings && hd.holdings[0]) || {};
+          acc.prof = { birth: h.birth || '', sex: h.sex || '', zip: h.zip || '', addr: h.addr || '', phone: h.phone || '', email: h.email || '', job: h.job || '' };
+        })
+        .catch(function () {})
+        .then(function () {
+          if (idx >= 0) accts[idx] = acc; else accts.push(acc);
+          App.setState({ accounts: accts, isLoggedIn: true, me: acc.no, page: 'home', pageStack: [], loginErr: null, loginPw: '', repAcct: acc.no, ownNos: [acc.no], homeView: acc.no, meisaiAcct: null });
+          App.loadNotices();
+        });
     })
     .catch(function () { App.setState({ loginErr: T.login_err }); });
 };
@@ -679,7 +691,7 @@ function tplLogin() {
   var T = App.T(), s = App.state;
   return '<div class="flex-center"><div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:20px">' +
     '<div style="display:flex;flex-direction:column;align-items:center;gap:12px"><div class="logo-mark" style="width:54px;height:54px;border-radius:15px;font-size:20px">KS</div></div>' +
-    '<div class="card-box">' +
+    '<form class="card-box" data-onsubmit="' + onSubmit(App.doLogin) + '">' +
     '<div style="font-size:16px;font-weight:900">' + esc(T.login_title) + '</div>' +
     (s.loginErr ? '<div class="err-box">⚠ ' + esc(s.loginErr) + '</div>' : '') +
     '<div class="row" style="gap:10px;align-items:flex-end">' +
@@ -690,11 +702,11 @@ function tplLogin() {
     '</div>' +
     '<input type="password" value="' + esc(s.loginPw) + '" data-onchange="' + onChange(App.onLoginPw) + '" placeholder="' + esc(T.login_pw) + '" class="inp-full">' +
     '<div class="row" style="gap:10px">' +
-    '<button data-click="' + onClick(App.doLogin) + '" class="btn-primary" style="flex:1">' + esc(T.login_btn) + '</button>' +
-    '<button data-click="' + onClick(App.goSignup) + '" style="flex:1;background:#fff;color:#a06e00;border:1px solid #ffcc00;padding:13px;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer">' + esc(T.login_signup) + '</button>' +
+    '<button type="submit" class="btn-primary" style="flex:1">' + esc(T.login_btn) + '</button>' +
+    '<button type="button" data-click="' + onClick(App.goSignup) + '" style="flex:1;background:#fff;color:#a06e00;border:1px solid #ffcc00;padding:13px;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer">' + esc(T.login_signup) + '</button>' +
     '</div>' +
     '<div class="hint-box">' + esc(T.login_hint) + '</div>' +
-    '</div>' +
+    '</form>' +
     '<div style="font-size:10.5px;color:#b0bacb;text-align:center;line-height:1.7">' + esc(T.login_note) + '</div>' +
     '<div class="row" style="gap:18px;justify-content:center;font-size:11.5px"><a href="#" style="color:#a06e00;text-decoration:none;font-weight:600">' + esc(T.ft_sec1) + '</a><a href="#" style="color:#a06e00;text-decoration:none;font-weight:600">' + esc(T.ft_sec2) + '</a></div>' +
     '</div></div>';
@@ -808,7 +820,10 @@ function tplHeader() {
       '<button class="popover-item" data-click="' + onClick(App.goHoldings) + '"><span>' + esc(T.us_holdings) + '</span><span style="color:#c3a24a;font-size:16px">›</span></button>' +
       '<button class="popover-item" data-click="' + onClick(App.naStart) + '" style="margin-bottom:14px"><span>' + esc(T.us_newacct) + '</span><span style="color:#c3a24a;font-size:16px">›</span></button>' +
       '<div style="font-size:11px;color:#6a7787;font-weight:700;margin-bottom:6px">' + esc(T.us_lang) + '</div>' +
-      '<select class="inp-full" data-value="' + s.lang + '" data-onchange="' + onChange(App.onLangSelect) + '"><option value="ja">日本語</option><option value="ko">한국어</option></select>' +
+      '<select class="inp-full" data-value="' + s.lang + '" data-onchange="' + onChange(App.onLangSelect) + '">' +
+      '<option value="ja"' + (s.lang === 'ja' ? ' selected' : '') + '>日本語</option>' +
+      '<option value="ko"' + (s.lang === 'ko' ? ' selected' : '') + '>한국어</option>' +
+      '</select>' +
       '</div>';
   }
   return '<header class="app-header"><div class="app-header-inner">' +
@@ -1442,7 +1457,7 @@ function morphChildren(oldParent, newParent) {
 
 var rootEl = null;
 function render() {
-  REG = { click: {}, change: {} };
+  REG = { click: {}, change: {}, submit: {} };
   var html = tplRoot();
   var wrap = buildDom(html);
   morphChildren(rootEl, wrap);
@@ -1463,12 +1478,24 @@ function delegateChange(el, evtName) {
     if (fn) fn(e);
   });
 }
+/* <form data-onsubmit="..."> 안에서 Enter 입력 시 브라우저가 발사하는 submit 을 받아
+   등록된 핸들러를 호출한다. 버튼을 마우스로 클릭하지 않아도 되게 하는 경로. */
+function delegateSubmit(el) {
+  el.addEventListener('submit', function (e) {
+    var t = e.target.closest('[data-onsubmit]');
+    if (!t || !el.contains(t)) return;
+    e.preventDefault();
+    var fn = REG.submit[t.getAttribute('data-onsubmit')];
+    if (fn) fn(e);
+  });
+}
 
 document.addEventListener('DOMContentLoaded', function () {
   rootEl = document.getElementById('app');
   delegateClick(rootEl);
   delegateChange(rootEl, 'input');
   delegateChange(rootEl, 'change');
+  delegateSubmit(rootEl);
   render();
 });
 

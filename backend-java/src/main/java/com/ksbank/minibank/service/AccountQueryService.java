@@ -47,6 +47,14 @@ public class AccountQueryService {
         h.put("joutai", nz(a.joutai()));
         h.put("isPrimary", nz(a.isPrimary()));   // "Y"/"N"
         h.put("zandaka", a.zandaka());
+        // 会員情報(会員情報画面) — KOUZA_EXT 프로필. 신규계좌는 미입력이라 전부 "" 일 수 있다.
+        h.put("birth", nz(a.birth()));
+        h.put("sex", nz(a.sex()));
+        h.put("zip", nz(a.zip()));
+        h.put("addr", nz(a.addr()));
+        h.put("phone", nz(a.phone()));
+        h.put("email", nz(a.email()));
+        h.put("job", nz(a.job()));
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("ok", true);
         m.put("holdings", List.of(h));
