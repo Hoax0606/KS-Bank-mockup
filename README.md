@@ -42,8 +42,16 @@ DB는 **정상 타입 컬럼**으로 저장하되, 문자셋을 메인프레임 
 - 백엔드는 **ASIS(레거시) COBOL**이 정본. nginx가 프론트 정적파일과 `/api`를 **같은 오리진**으로 서빙합니다.
 - **마이그레이션 목표** = 같은 입력을 넣었을 때 두 DB에 **같은 값**이 들어가는 것.
   그 증명이 `sh tools/parity/compare.sh` → `PARITY OK` 입니다 (§4.2).
-- COBOL은 정상 컬럼을 그대로 읽고 씁니다(호스트변수 직접 바인딩, VARCHAR2 등가비교는 `RTRIM(:hv)`). GixSQL/OCI 드라이버가 NLS_LANG과 무관하게 **클라이언트 문자셋을 UTF-8로 강제**(Instant Client basiclite에 문자셋 변환기가 없음)하므로, 일본어 컬럼은 앱에 **UTF-8**로 도착하고 HTTP 응답도 UTF-8입니다.
-- 결과: **DB는 디스크에 Shift-JIS로 저장, 앱/HTTP는 UTF-8로 통신, 브라우저는 일본어 정상 표시.**
+- COBOL은 정상 컬럼을 그대로 읽고 씁니다(호스트변수 직접 바인딩, VARCHAR2 등가비교는 `RTRIM(:hv)`).
+- **(2026-07-30 시점, 지금은 아래로 대체)** 당시엔 GixSQL/OCI 드라이버가 NLS_LANG과 무관하게
+  클라이언트 문자셋을 UTF-8로 강제(Instant Client Basic Lite에 문자셋 변환기가 없음)했어서,
+  일본어 컬럼이 앱에 UTF-8로 도착하고 HTTP 응답도 UTF-8이었습니다.
+- **📌 2026-08 갱신 — 배치/온라인 앱 레벨도 Shift-JIS로 재전환.** Instant Client를 Basic(비-Lite)으로
+  바꿔 `NLS_LANG=JAPANESE_JAPAN.JA16SJISTILDE`가 실제로 적용되게 했습니다. 지금은 **DB·배치파일·
+  온라인 HTTP 응답 전부 Shift-JIS**입니다(단, 회원가입/공지 등록처럼 브라우저가 새로 보내는 일본어
+  텍스트는 `UTF2SJIS.c`로 UTF-8→Shift-JIS 변환 후 저장 — 브라우저의 `encodeURIComponent`가 항상
+  UTF-8만 만들기 때문). 상세는 `backend-cobol/README.md`의 "③ 2026-08 Shift-JIS 앱/파일 레벨
+  재전환" 참조. **`backend-java`(TOBE)는 이 변경과 무관하게 계속 UTF-8입니다.**
 
 ---
 
@@ -138,13 +146,15 @@ docker compose -f backend-java/compose.java.yml       up -d --build   # Java 스
 
 ### 4.2 배치 실행 (10단계 야간배치)
 
-컨테이너 안에서 `run_batch.sh`를 실행합니다. **exec 셸에는 entrypoint의 `ORA_*`가
-상속되지 않으므로 주입 필수**입니다.
+컨테이너 안에서 `run_batch.sh`를 실행합니다. **exec 셸에는 entrypoint의 `ORA_*`/`NLS_LANG`이
+상속되지 않으므로 주입 필수**입니다(2026-08부터 배치도 Shift-JIS 응답이라 `NLS_LANG` 누락 시
+UTF-8로 전환됨).
 
 ```bash
 # 서버(SSH 접속 후). 로컬 Docker Desktop이면 'sudo' 빼고 동일.
 sudo docker exec -w /app/build \
   -e ORA_CONN=oracle://oracle:1521/XEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
+  -e NLS_LANG=JAPANESE_JAPAN.JA16SJISTILDE \
   mb-cobol-sjis \
   sh -c 'mkdir -p data && sh run_batch.sh'
 # => [batch] all 10 steps done.
@@ -187,7 +197,7 @@ IP=$(sudo docker inspect oracle_sjis --format '{{range .NetworkSettings.Networks
 sudo docker rm -f mb-cobol-sjis
 sudo docker run -d --name mb-cobol-sjis --restart unless-stopped --add-host oracle:$IP -p 8092:80 \
   -e ORA_CONN=oracle://$IP:1521/XEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
-  -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 -e TZ=Asia/Tokyo \
+  -e NLS_LANG=JAPANESE_JAPAN.JA16SJISTILDE -e TZ=Asia/Tokyo \
   minibank-cobol-sjis:latest
 ```
 
@@ -244,8 +254,10 @@ sudo docker exec -i -e NLS_LANG=AMERICAN_AMERICA.AL32UTF8 oracle_sjis sqlplus -s
    재생성해 **정상 타입 컬럼**(NUMBER/VARCHAR2/CHAR)으로 전환했습니다. 삭제된 것: `cobol/JEFCONV.c`,
    `RAWUTF8.cbl`, `EBCDIG.cbl`, `jef/` 디렉터리 전체(JefServer/jef4j.jar 등), 코덱 카피북
    `WPACK/PPACK/WTXT/PTXT/WENCODE.cpy`, 그리고 **127.0.0.1:9099 JEF 상주 서비스**.
-2. **앱↔DB 문자셋** — COBOL은 정상 컬럼을 직접 바인딩(VARCHAR2 등가비교는 `RTRIM(:hv)`). GixSQL/OCI
-   드라이버가 클라이언트 문자셋을 UTF-8로 강제하므로 DB는 디스크에 Shift-JIS, 앱/HTTP는 UTF-8입니다.
+2. **앱↔DB 문자셋 — Shift-JIS 앱 레벨 재전환 완료** ✅ (2026-08). COBOL은 정상 컬럼을 직접
+   바인딩(VARCHAR2 등가비교는 `RTRIM(:hv)`). Instant Client를 Basic(비-Lite)으로 바꿔 클라이언트
+   문자셋이 실제로 JA16SJIS를 따라가게 했다 — DB·배치파일·온라인 HTTP 응답 전부 Shift-JIS. 쓰기
+   경로(회원가입/공지)는 `UTF2SJIS.c`로 브라우저의 UTF-8을 명시 변환 후 저장(§1 참조).
 3. **계좌번호 자릿수** — 프론트·DB 모두 7자리(`KOUZA_NO`)로 정합됨.
 4. **DDL/시드 정본** ✅ — `sql/01_ddl.sql`·`02_seed.sql`은 JA16SJIS DB용 정상 타입 스키마 + 일본어 리터럴 시드.
    `oracle_sjis` 최초 기동 시 `/opt/oracle/scripts/setup` 훅으로 자동 적재됩니다.

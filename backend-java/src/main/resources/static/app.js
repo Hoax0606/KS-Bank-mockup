@@ -2,6 +2,14 @@
 'use strict';
 
 /* ============================================================
+   2026-08: 이 파일은 frontend/app.js(ASIS/COBOL용)와 더 이상 완전히
+   동일하지 않다 — 그쪽은 응답이 charset=Shift_JIS 로 바뀌어 fetch 응답을
+   TextDecoder('shift_jis')로 직접 디코드하는 shiftJisJson() 헬퍼를 쓴다.
+   여기(Java/TOBE)는 계속 UTF-8이라 그냥 r.json()을 쓰는 게 맞다 —
+   frontend/app.js 쪽 변경을 그대로 여기에 동기화하지 말 것.
+   ============================================================ */
+
+/* ============================================================
    Tiny DOM diff/patch engine (keeps input focus across re-render)
    ============================================================ */
 function morph(oldNode, newNode) {

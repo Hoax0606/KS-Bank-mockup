@@ -115,9 +115,11 @@ tail -12 "$OUT/fixture_pg.log"
 
 # ------------------------------------------------------------
 say "3/7  COBOL 배치 실행 (10 스텝)"
-#  ORA_* 주입 필수 — docker exec 셸은 entrypoint 의 export 를 상속하지 않는다
+#  ORA_*/NLS_LANG 주입 필수 — docker exec 셸은 entrypoint 의 export 를 상속하지 않는다.
+#  2026-08부터 배치도 Shift-JIS 응답이라 NLS_LANG 누락 시 UTF-8로 조용히 전환된다.
 docker exec -i \
   -e ORA_CONN="$ORA_CONN" -e ORA_USER=minibank -e ORA_PASS=minibank \
+  -e NLS_LANG=JAPANESE_JAPAN.JA16SJISTILDE \
   "$COBOL_APP" sh -c 'cd /app/build && mkdir -p data && sh run_batch.sh'
 
 say "4/7  Java 배치 실행"

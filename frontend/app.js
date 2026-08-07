@@ -2,6 +2,20 @@
 'use strict';
 
 /* ============================================================
+   2026-08: ASIS(COBOL) 응답은 charset=Shift_JIS 로 바뀌었다(브라우저
+   encodeURIComponent는 요청을 항상 UTF-8로만 보내지만, 응답은 COBOL이
+   Shift-JIS로 준다). fetch().json()은 항상 UTF-8로 디코드하므로 못 쓰고,
+   원시 바이트를 받아 TextDecoder('shift_jis')로 직접 디코드해야 한다.
+   ★이 파일(frontend/app.js)에만 적용 — backend-java 의 정적 사본은 계속
+   UTF-8(.json())을 쓰므로 동기화하지 말 것.
+   ============================================================ */
+function shiftJisJson(r) {
+  return r.arrayBuffer().then(function (buf) {
+    return JSON.parse(new TextDecoder('shift_jis').decode(buf));
+  });
+}
+
+/* ============================================================
    Tiny DOM diff/patch engine (keeps input focus across re-render)
    ============================================================ */
 function morph(oldNode, newNode) {
@@ -269,7 +283,7 @@ App.goSoukin = App.goTo('transfer');
 App.loadLoans = function (kouza) {
   kouza = String(kouza || ''); if (!kouza) return;
   fetch('/api/loan?kouza=' + encodeURIComponent(kouza))
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok || !d.loans) return;
       App.setState({ loans: d.loans.map(function (l) { return { loanId: l.loanId, amt: Number(l.principal), bal: Number(l.balance), method: l.method, years: l.years, date: '', acct: kouza }; }) });
@@ -302,7 +316,7 @@ App.doLogin = function () {
   // 実COBOLバックエンド(LOGIN.cbl / CGI)へ: 店番3桁 + 口座7桁 + PW を検証
   var body = 'branch=' + encodeURIComponent(b) + '&acct=' + encodeURIComponent(a) + '&pw=' + encodeURIComponent(p);
   fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok) return App.setState({ loginErr: T.login_err });
       if (String(d.joutai) === '9') return App.setState({ loginErr: T.err_frozen || T.login_err });
@@ -318,7 +332,7 @@ App.doLogin = function () {
       // 会員情報(生年月日・住所等)は holdings が KOUZA_EXT から取得する。
       // 실패해도 로그인 자체는 진행(있던 prof 유지, 없으면 빈 값 → 화면에 "—" 표시).
       return fetch('/api/holdings?kouza=' + encodeURIComponent(a))
-        .then(function (r) { return r.json(); })
+        .then(shiftJisJson)
         .then(function (hd) {
           var h = (hd && hd.ok && hd.holdings && hd.holdings[0]) || {};
           acc.prof = { birth: h.birth || '', sex: h.sex || '', zip: h.zip || '', addr: h.addr || '', phone: h.phone || '', email: h.email || '', job: h.job || '' };
@@ -355,7 +369,7 @@ App.suExecute = function () {
     '&birth=' + encodeURIComponent(s.suBirth) + '&sex=' + encodeURIComponent(s.suSex) + '&zip=' + encodeURIComponent(s.suZip) +
     '&addr=' + encodeURIComponent(s.suAddr) + '&phone=' + encodeURIComponent(s.suPhone) + '&email=' + encodeURIComponent(s.suEmail) + '&job=' + encodeURIComponent(s.suJob);
   fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok || !d.kouza) return App.setState({ suErr: App.T().su_err_req });
       var no = String(d.kouza);
@@ -410,7 +424,7 @@ App.trExecute = function () {
   // 実COBOLバックエンド(FURIKOMI.cbl / CGI)へ振込(原子的処理)。残高はDB確定値。
   var body = 'kouza=' + encodeURIComponent(me.no) + '&aite=' + encodeURIComponent(toNo) + '&kingaku=' + amt;
   fetch('/api/furikomi', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok) {
         var T = App.T();
@@ -474,7 +488,7 @@ App.loanExecute = function () {
   // 実COBOLバックエンド(LOAN.cbl / CGI)で融資実行。LOAN_ASIS登録 + acctNoへ元金入金 + TORIHIKI記録。
   var body = 'kouza=' + encodeURIComponent(acctNo) + '&amt=' + P + '&method=' + encodeURIComponent(s.loanMethod) + '&years=' + encodeURIComponent(s.loanTermY);
   fetch('/api/loan', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok) return App.setState({ loanErr: App.T().err_amount });
       var accts = App.state.accounts.map(function (a) { return a.no === acctNo ? Object.assign({}, a, { balance: a.balance + P }) : a; });
@@ -496,7 +510,7 @@ App.loanRepayExecute = function () {
   // 実COBOLバックエンド(REPAY.cbl / CGI)で返済。利息・手数料550・残高更新はDB確定値。
   var body = 'loanId=' + encodeURIComponent(l.loanId) + '&principal=' + principal;
   fetch('/api/repay', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok) return App.setState({ repayErr: T.repay_err_bal });
       var interest = Number(d.interest), fee = Number(d.fee), total = Number(d.total), newBal = Number(d.loanBalance), completed = !!d.closed;
@@ -515,7 +529,7 @@ App.loanRepayExecute = function () {
    ============================================================ */
 App.loadNotices = function () {
   fetch('/api/notice')
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) { if (d && d.ok && d.notices) App.setState({ dbNotices: d.notices }); })
     .catch(function () {});
 };
@@ -530,7 +544,7 @@ App.submitNotice = function () {
   // 実COBOLバックエンド(NOTICE.cbl / CGI)へ登録 → DBから再読込
   var body = 'title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent((App.state.ncBody || '').trim()) + '&tag=' + encodeURIComponent(T.nc_tag);
   fetch('/api/notice', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function () { App.loadNotices(); App.setState({ page: 'home', pageStack: [], ncTitle: '', ncBody: '', ncFiles: [] }); })
     .catch(function () { App.setState({ page: 'home', pageStack: [], ncTitle: '', ncBody: '', ncFiles: [] }); });
 };
@@ -549,7 +563,7 @@ App.loadMeisai = function (kouza) {
   kouza = String(kouza || '');
   if (!kouza) return;
   fetch('/api/meisai?kouza=' + encodeURIComponent(kouza))
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok || !d.rows) return;
       var kmap = { '1': '入金', '2': '出金', '3': '振込' };
@@ -644,7 +658,7 @@ App.naExecute = function () {
   var body = 'kanji=' + encodeURIComponent(me.kanji || '') + '&kana=' + encodeURIComponent(me.kana || '') +
     '&type=' + encodeURIComponent(s.naType) + '&branch=' + encodeURIComponent(store.code) + '&pw=' + encodeURIComponent(s.naPw);
   fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-    .then(function (r) { return r.json(); })
+    .then(shiftJisJson)
     .then(function (d) {
       if (!d || !d.ok || !d.kouza) return App.setState({ naErr: App.T().su_err_req });
       var no = String(d.kouza);

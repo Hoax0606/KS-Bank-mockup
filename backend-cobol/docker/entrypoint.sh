@@ -9,9 +9,11 @@ set -e
 : "${ORA_CONN:=oracle://oracle:1521/XEPDB1}"
 : "${ORA_USER:=minibank}"
 : "${ORA_PASS:=minibank}"
-# DB는 JA16SJIS 저장이나 GixSQL 드라이버가 취득 시 UTF-8로 강제 변환한다
-# (NLS_LANG는 실질 무시됨). 응답은 UTF-8.
-: "${NLS_LANG:=AMERICAN_AMERICA.AL32UTF8}"
+# ★2026-08 Shift-JIS 재전환: Instant Client를 Basic(비-Lite)으로 바꾸면서
+#   클라이언트 문자셋이 실제로 JA16SJIS를 따라간다. DB 저장(JA16SJIS)과
+#   앱/응답이 이제 전부 Shift-JIS. TILDE 변종을 클라이언트가 못 받으면
+#   JA16SJIS로 낮출 것(§ backend-cobol/README.md 참조).
+: "${NLS_LANG:=JAPANESE_JAPAN.JA16SJISTILDE}"
 
 export ORA_CONN ORA_USER ORA_PASS NLS_LANG
 # GnuCOBOL がサブモジュール(.so)を探すパス

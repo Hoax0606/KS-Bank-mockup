@@ -1,7 +1,8 @@
       *>****************************************************************
       *> NOTICE  -  お知らせ CGI (通常型/Shift-JIS DB版)
       *>   GET  : 有効なお知らせ一覧(新しい順) 日付/タグ/タイトルを直接取得
-      *>   POST : title,[body],[tag] -> そのまま追加(UTF-8→DBでSJIS)
+      *>   POST : title,[body],[tag] -> UTF2SJIS(glibc iconv)で Shift-JIS に
+      *>          変換してから追加(ブラウザは常に UTF-8 で送るため)。
       *>   NOTICE_DATE=CHAR(8) 'YYYYMMDD', IS_ACTIVE='Y'。
       *>****************************************************************
        IDENTIFICATION DIVISION.
@@ -16,6 +17,12 @@
        01  WK-BODY     PIC X(2000).
        01  WK-TAG      PIC X(30).
        01  WK-DATE     PIC X(8).
+      *>   ブラウザは title/body/tag を常に UTF-8 で送る(encodeURIComponentの
+      *>   仕様上変更不能)。DB へは Shift-JIS で書く必要があるため、ここで
+      *>   明示的に変換する(UTF2SJIS.c, glibc iconv 直呼び)。
+       01  UC-OUT      PIC X(2000).
+       01  UC-INLEN    PIC 9(4).
+       01  UC-OUTLEN   PIC 9(4).
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
        01  HV-TITLE    PIC X(600).
        01  HV-BODY     PIC X(2000).
@@ -98,6 +105,25 @@
            MOVE WK-TAG TO HV-TAG
            MOVE FUNCTION CURRENT-DATE(1:8) TO WK-DATE
            MOVE WK-DATE TO HV-DATE
+      *>   UTF-8(ブラウザ送信/既定値リテラル共通) -> Shift-JIS(DB 格納) 変換
+           MOVE SPACES TO UC-OUT MOVE 600 TO UC-INLEN UC-OUTLEN
+           CALL "UTF2SJIS" USING HV-TITLE UC-INLEN UC-OUT UC-OUTLEN
+           IF RETURN-CODE NOT = 0
+               MOVE "invalid_text_encoding" TO WK-ERRMSG PERFORM ERR-400
+           END-IF
+           MOVE UC-OUT TO HV-TITLE
+           MOVE SPACES TO UC-OUT MOVE 2000 TO UC-INLEN UC-OUTLEN
+           CALL "UTF2SJIS" USING HV-BODY UC-INLEN UC-OUT UC-OUTLEN
+           IF RETURN-CODE NOT = 0
+               MOVE "invalid_text_encoding" TO WK-ERRMSG PERFORM ERR-400
+           END-IF
+           MOVE UC-OUT TO HV-BODY
+           MOVE SPACES TO UC-OUT MOVE 30 TO UC-INLEN UC-OUTLEN
+           CALL "UTF2SJIS" USING HV-TAG UC-INLEN UC-OUT UC-OUTLEN
+           IF RETURN-CODE NOT = 0
+               MOVE "invalid_text_encoding" TO WK-ERRMSG PERFORM ERR-400
+           END-IF
+           MOVE UC-OUT TO HV-TAG
            EXEC SQL
                SELECT SEQ_NOTICE_ASIS.NEXTVAL INTO :HV-NID FROM DUAL
            END-EXEC

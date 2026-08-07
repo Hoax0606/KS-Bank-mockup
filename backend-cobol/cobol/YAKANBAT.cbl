@@ -6,7 +6,7 @@
       *>     (2) 確定残高に対する日次利息を計算し KOUZA 残高へ加算(posting)
       *>   取引後残高は 期首(=現残高-当日増減合計)から積み上げて表示する。
       *>   ※ EBCDIC/JEF/存10進/COMP-3コーデック廃止。ファイルはネイティブ、
-      *>     DB は通常型直接バインド。名義は UTF-8(REPORT は X(60))。
+      *>     DB は通常型直接バインド。名義は Shift-JIS(REPORT は X(60))。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. YAKANBAT.
@@ -19,9 +19,13 @@
                ORGANIZATION IS SEQUENTIAL FILE STATUS IS FS-RPTW.
        DATA DIVISION.
        FILE SECTION.
-       FD  F-SDAT.
+      *>   RECORD CONTAINS 명시 — §MKDAT.cbl에서 확인된 버그(미명시 시 EXEC
+      *>   SQL 활동과 얽혀 특정 건수(9건+)에서 WRITE 레코드 1건이 조용히
+      *>   누락됨)의 예방 조치. YAKANBAT은 SQL SELECT를 계좌마다 수행하며
+      *>   대량의 D/T 明細 레코드를 WRITE하므로 위험이 가장 큰 프로그램.
+       FD  F-SDAT RECORD CONTAINS 97 CHARACTERS.
        COPY WTRDAT.
-       FD  F-RPTW.
+       FD  F-RPTW RECORD CONTAINS 164 CHARACTERS.
        01  RPTW-REC.
            05  RPTW-KANA   PIC X(60).
            05  RPTW-SEQ    PIC 9(6).

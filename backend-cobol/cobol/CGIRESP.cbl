@@ -1,6 +1,8 @@
       *>****************************************************************
-      *> CGIRESP  -  HTTP ヘッダ + JSON バディ(UTF-8確定)を stdout へ出力。
+      *> CGIRESP  -  HTTP ヘッダ + JSON バディ(Shift-JIS確定)を stdout へ出力。
       *>   ※ 1ファイル=1プログラム(動的 CALL 解決のため)。
+      *>   2026-08: クライアント文字セットを Shift-JIS へ切替えたのに合わせ、
+      *>   charset も Shift-JIS に統一(9個の CGI 全部がここを共通で呼ぶ)。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. CGIRESP.
@@ -14,7 +16,8 @@
       *>   " " による空白混入を避け、X"0A" で厳密に組み立てる。
       *>   (空行に空白が入ると nginx が invalid header で 502 になる)
            DISPLAY "Status: " RESP-STATUS X"0A"
-                   "Content-Type: application/json; charset=UTF-8" X"0A"
+                   "Content-Type: application/json; "
+                   "charset=Shift_JIS" X"0A"
                    "Cache-Control: no-store" X"0A"
                    X"0A"
                WITH NO ADVANCING

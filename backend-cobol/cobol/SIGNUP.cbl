@@ -3,7 +3,9 @@
       *>   POST: kanji, kana, type, branch, pw, birth, sex, zip, addr,
       *>         phone, email, job
       *>   動的帯域(SEQ_KOUZA_DYN, 7桁 9000001~)で採番。
-      *>   名義等は UTF-8 のまま INSERT(GixSQL→OCI が DB の JA16SJIS へ変換)。
+      *>   ブラウザは name/kana を UTF-8 で送るため、UTF2SJIS(glibc iconv)で
+      *>   Shift-JIS に変換してから INSERT する(2026-08、クライアント文字セット
+      *>   を Shift-JIS へ切替えたのに合わせた変更。§UTF2SJIS.c 参照)。
       *>   ※ プロフィール列は NULL 可のため必須列のみ INSERT。
       *>****************************************************************
        IDENTIFICATION DIVISION.
@@ -14,6 +16,12 @@
        COPY WONLINE.
        COPY WDB.
        01  WK-NOW      PIC X(21).
+      *>   ブラウザは name/kana を常に UTF-8 で送る(encodeURIComponentの仕様上
+      *>   変更不能)。DB へは Shift-JIS で書く必要があるため、ここで明示的に
+      *>   変換する(UTF2SJIS.c, glibc iconv 直呼び — 旧 JEF コーデックとは無関係)。
+       01  UC-OUT      PIC X(60).
+       01  UC-INLEN    PIC 9(4).
+       01  UC-OUTLEN   PIC 9(4).
        EXEC SQL BEGIN DECLARE SECTION END-EXEC.
        01  HV-KANJI    PIC X(60).
        01  HV-KANA     PIC X(60).
@@ -45,6 +53,19 @@
            IF HV-KANJI = SPACES OR HV-PW = SPACES
                MOVE "missing_required" TO WK-ERRMSG PERFORM ERR-400
            END-IF
+      *>   UTF-8(ブラウザ送信) -> Shift-JIS(DB 格納) 変換
+           MOVE SPACES TO UC-OUT MOVE 60 TO UC-INLEN UC-OUTLEN
+           CALL "UTF2SJIS" USING HV-KANJI UC-INLEN UC-OUT UC-OUTLEN
+           IF RETURN-CODE NOT = 0
+               MOVE "invalid_text_encoding" TO WK-ERRMSG PERFORM ERR-400
+           END-IF
+           MOVE UC-OUT TO HV-KANJI
+           MOVE SPACES TO UC-OUT MOVE 60 TO UC-INLEN UC-OUTLEN
+           CALL "UTF2SJIS" USING HV-KANA UC-INLEN UC-OUT UC-OUTLEN
+           IF RETURN-CODE NOT = 0
+               MOVE "invalid_text_encoding" TO WK-ERRMSG PERFORM ERR-400
+           END-IF
+           MOVE UC-OUT TO HV-KANA
       *>   種別 -> SHUBETSU(2=当座 / それ以外=1=普通系)。CHECK は 1/2 のみ。
            IF HV-TYPE(1:6) = "当座"
                MOVE '2' TO HV-SHU

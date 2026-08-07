@@ -8,8 +8,10 @@ Java 측 ReportWriter 가 쓰는 MEISAI.TXT 와 **같은 포맷**으로 출력�
     T kouza=1000123 risoku=1 tesuryoGoukei=110 kakuteiZan=523401
 
 레이아웃 정본: backend-cobol/cobol/copy/WMEISAI.cpy
-    D: X(1) + 9(10) + X(60)UTF8 + X(14) + X(1) + COMP-3(6) + COMP-3(6) = 98
-    T: X(1) + 9(10) + COMP-3(6)×3 + X(69)공백                          = 98
+    D: X(1) + 9(10) + X(60)Shift-JIS + X(14) + X(1) + COMP-3(6) + COMP-3(6) = 98
+    T: X(1) + 9(10) + COMP-3(6)×3 + X(69)공백                              = 98
+   (2026-08부터 名義 필드는 Shift-JIS(CP932) — 이전엔 UTF-8이었음. 이 스크립트가
+    CP932->UTF-8 변환을 대신 해줘서 Java 측 UTF-8 출력과 diff 가능하게 만든다.)
 
 사용:
     python meisai_dump.py MEISAI.RPT [> out.txt]
@@ -21,7 +23,8 @@ REC_LEN = 98
 # ★출력은 반드시 UTF-8 + LF.
 #   Windows 에서 stdout 을 파일로 리다이렉트하면 Python 은 로케일 인코딩(예: cp949)과
 #   CRLF 를 쓴다. 그러면 名義(일본어)가 Java 측 UTF-8 파일과 바이트가 달라져
-#   값이 같은데도 diff 가 깨진다. COBOL 이 쓰는 MEISAI.RPT 의 名義 자체는 UTF-8 이다.
+#   값이 같은데도 diff 가 깨진다. COBOL 이 쓰는 MEISAI.RPT 의 名義 자체는 이제 Shift-JIS(CP932)
+#   이므로, 아래에서 명시적으로 디코드해 UTF-8로 다시 인코드한다.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
 
@@ -56,7 +59,7 @@ def dump(path: str, out=sys.stdout) -> int:
         kubun = rec[0:1].decode("ascii", "replace")
         kouza = rec[1:11].decode("ascii", "replace")
         if kubun == "D":
-            meigi = rec[11:71].decode("utf-8", "replace").rstrip()
+            meigi = rec[11:71].decode("cp932", "replace").rstrip()
             dt = rec[71:85].decode("ascii", "replace")
             kbn = rec[85:86].decode("ascii", "replace")
             print(f"D kouza={int(kouza)}"

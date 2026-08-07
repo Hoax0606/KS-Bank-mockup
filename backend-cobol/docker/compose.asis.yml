@@ -73,9 +73,11 @@ services:
       ORA_CONN: "oracle://oracle:1521/XEPDB1"
       ORA_USER: "minibank"
       ORA_PASS: "minibank"
-      # DB는 JA16SJISTILDE 저장. GixSQL/OCI 드라이버가 취득 시 클라이언트 문자셋을
-      # UTF-8로 강제하므로(NLS_LANG 실질 무시) 응답은 UTF-8. 프론트도 UTF-8.
-      NLS_LANG: "AMERICAN_AMERICA.AL32UTF8"
+      # ★2026-08 Shift-JIS 재전환: Instant Client를 Basic(비-Lite)으로 바꿔서
+      # 클라이언트 문자셋이 실제로 JA16SJIS를 따라간다. DB 저장·앱·응답 전부
+      # Shift-JIS(단, 쓰기 경로 SIGNUP/NOTICE는 UTF2SJIS.c로 브라우저의 UTF-8을
+      # 명시적으로 변환한 뒤 INSERT — 프론트는 항상 UTF-8로 보냄).
+      NLS_LANG: "JAPANESE_JAPAN.JA16SJISTILDE"
       TZ: "Asia/Tokyo"
     ports:
       - "8092:80"                        # SERVER-SETUP §3-2 와 동일(화면+API)

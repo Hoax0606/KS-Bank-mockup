@@ -7,12 +7,13 @@
 
 ---
 
-## ★ 현재 구현 현황 (2026-07-30 갱신 — 아래 §0~§9보다 우선)
+## ★ 현재 구현 현황 (2026-08 갱신 — 아래 §0~§9보다 우선)
 
-> 아래 본문 §0~§9는 **초기 설계 기록**입니다. 이후 두 차례 크게 바뀌어(① 전 컬럼 RAW 인코딩 확장 →
-> ② 2026-07-30 Shift-JIS 정상 타입 마이그레이션), 일부 서술(`TEAMENC` 스텁 인코더, CP930,
-> 10자리 계좌번호, `ZANDAKA NUMBER(11)`, RAW/COMP-3/존10진, `MEISAI.RPT` 58byte 등)은
-> **더 이상 유효하지 않습니다.** 실제 현재 상태는 이 절을 정본으로 삼으세요.
+> 아래 본문 §0~§9는 **초기 설계 기록**입니다. 이후 세 차례 크게 바뀌어(① 전 컬럼 RAW 인코딩 확장 →
+> ② 2026-07-30 Shift-JIS 정상 타입 마이그레이션 → ③ 2026-08 Shift-JIS 앱/파일 레벨 재전환, 바로
+> 아래 별도 항목), 일부 서술(`TEAMENC` 스텁 인코더, CP930, 10자리 계좌번호, `ZANDAKA NUMBER(11)`,
+> RAW/COMP-3/존10진, `MEISAI.RPT` 58byte 등)은 **더 이상 유효하지 않습니다.** 실제 현재 상태는 이
+> 절을 정본으로 삼으세요.
 
 **문자셋 = Oracle JA16SJIS + 정상 타입 컬럼 (2026-07-30 마이그레이션 완료)**
 사장님 지시: **Oracle = Shift-JIS**. 이전의 "전 컬럼 RAW(JEF EBCDIC 텍스트 + COMP-3 금액 + 존10진 키) +
@@ -24,9 +25,43 @@
 - **앱(COBOL)**: 정상 컬럼을 그대로 읽고 씁니다(호스트변수 직접 바인딩, VARCHAR2 등가비교는 `RTRIM(:hv)`).
   GixSQL/OCI 드라이버가 NLS_LANG과 무관하게 **클라이언트 문자셋을 UTF-8로 강제**(Instant Client basiclite에
   문자셋 변환기가 없음)하므로, 일본어 컬럼은 앱에 **UTF-8**로 도착하고 HTTP 응답도 UTF-8입니다.
-- **순효과**: **DB는 디스크에 Shift-JIS, 앱/HTTP는 UTF-8, 브라우저는 일본어 정상 표시.**
+- **순효과(2026-07-30 시점)**: **DB는 디스크에 Shift-JIS, 앱/HTTP는 UTF-8, 브라우저는 일본어 정상 표시.**
+  ⚠️ 아래 "③ 2026-08 Shift-JIS 앱/파일 레벨 재전환"으로 이 순효과가 바뀌었다 — 지금은 앱/HTTP도
+  Shift-JIS다.
 
-**삭제된 것 (구 RAW/JEF 설계)**
+**③ 2026-08 Shift-JIS 앱/파일 레벨 재전환** (매니저 지시: "ASIS는 무조건 Shift-JIS" — DB뿐 아니라
+앱·파일·온라인 응답까지)
+- **원인 재확인(2단계였음)**: (1) Instant Client **Basic Lite**엔 `libociei.so`(NLS 문자셋 변환
+  데이터, JA16SJIS 포함)가 통째로 없어서 → **Basic**(비-Lite)로 교체. (2) 교체만으론 안 고쳐짐 —
+  실제 원인은 GixSQL 자체였다. `DbInterfaceOracle.cpp::connect()`가 `dpiConn_create()`에
+  `commonParams=NULL`을 넘기는데, ODPI-C는 이 경우 `encoding`/`nencoding`을 **항상 "UTF-8"로
+  하드코딩**한다(`dpiContext__initCommonCreateParams`) — `NLS_LANG`을 뭘로 설정해도 무시됨.
+  `docker/vendor/gixsql-oracle-nls-lang.patch`로 `encoding`/`nencoding`을 명시적으로 `NULL`로
+  되돌려서 OCI가 `NLS_LANG`을 실제로 보게 만들었다(charset id 0 → OCI가 NLS_LANG으로 판단).
+- **조치**: Instant Client Basic 교체 + 위 GixSQL 패치 + `NLS_LANG=JAPANESE_JAPAN.JA16SJISTILDE`로
+  변경(`compose.asis.yml`/`entrypoint.sh`). 그 결과 배치 파일(`TORIHIKI.DAT`/`MEISAI.RPT` 등)과
+  온라인 9개 CGI 응답(`Content-Type: ...; charset=Shift_JIS`) 전부 **실측으로 확인**(CP932 디코드
+  성공/UTF-8 디코드 실패) 실제로 Shift-JIS가 됐다.
+- **쓰기 경로**: 브라우저의 `encodeURIComponent`는 항상 UTF-8만 만들어내므로(브라우저 표준의
+  근본 한계), 사용자가 새로 입력하는 일본어(회원가입 이름, 공지 제목/본문)는 COBOL에 UTF-8로
+  도착한다. 이걸 그대로 Shift-JIS로 착각한 채 DB에 쓰면 깨지므로, **`UTF2SJIS.c`**(glibc `iconv()`
+  직접 호출, 옛 JEF처럼 네트워크 서비스에 붙지 않는 훨씬 작은 브릿지)로 명시적으로 변환한 뒤
+  `SIGNUP.cbl`/`NOTICE.cbl`에서 INSERT한다. FURIKOMI/LOAN/REPAY는 일본어 자유텍스트를 쓰지
+  않으므로(조사로 확인) 변환 불필요.
+- **바뀌지 않은 것**: DB 컬럼 타입(정상 타입 유지), 삭제된 옛 JEF/EBCDIC 서비스는 되살리지 않음
+  (`UTF2SJIS.c`는 그것과 무관한 신규 파일). `backend-java`(TO-BE)는 계속 UTF-8 — 이 재전환은
+  ASIS(COBOL) 쪼에만 적용된다.
+- **순효과(현재)**: **DB·앱·배치파일·온라인 HTTP 응답 전부 Shift-JIS.** 다만 아직 다루지 못한
+  구석(예: sqlplus로 직접 조회할 때는 여전히 `NLS_LANG=AL32UTF8`을 써야 사람이 읽기 편함 — §7
+  참조)은 그대로.
+- **★검증 중 발견해서 같이 고친 별개의 버그(인코딩과 무관)**: `MKDAT`/`SORTDAT`/`YAKANBAT`/
+  `SORTRPT`의 `FD`에 `RECORD CONTAINS` 절이 없으면, EXEC SQL 활동과 얽혀 **거래가 9건 이상일 때
+  그중 1건이 WRITE는 됐다고 COBOL이 보고하면서도(N-OUT 증가) 실제 파일에는 조용히 안 써지는**
+  현상을 실측으로 확인함(순수 ASCII 데이터로도 재현돼 Shift-JIS와 무관, 데모가 항상 8건이라
+  지금까지 안 걸렸던 것). 4개 파일의 모든 `FD`에 `RECORD CONTAINS N CHARACTERS`를 명시해서 해결—
+  9건짜리 픽스처로 전체 10단계 배치를 재현·재검증함(明細 16건 전부 정상 출력).
+
+**삭제된 것 (구 RAW/JEF 설계, ② 시점에 삭제 — ③에서도 되살리지 않음)**
 - 소스: `cobol/JEFCONV.c`, `cobol/RAWUTF8.cbl`, `cobol/EBCDIG.cbl`, `jef/` 디렉터리 전체
   (`JefServer.java`, `jef4j.jar`, `JefHex.java`, `ReSeed.java`, `names.txt`).
 - 카피북: `copy/{WPACK,PPACK,WTXT,PTXT,WENCODE}.cpy`.
@@ -46,8 +81,9 @@
 
 **배치**(§5)는 실거래 연동 방식(옵션1): 온라인 CGI가 이미 실시간 반영하므로, 배치는 재INSERT 없이
 명세 생성 + 이자 가산만 담당(普通 종별만, `floor(잔액/365000)`). 플랫파일은 이제 **네이티브**
-(ASCII display 숫자 + 네이티브 COMP-3 + UTF-8 텍스트)이며, 모든 리포트 배치는 정상 컬럼을 읽습니다.
-`MEISAI.RPT` 레코드는 명의 필드가 UTF-8 수용을 위해 넓어져(`MD-MEIGI-KANJI X(60)`) **98 byte**입니다(기존 58).
+(ASCII display 숫자 + 네이티브 COMP-3 + Shift-JIS 텍스트, 2026-08부터 — 이전엔 UTF-8)이며, 모든
+리포트 배치는 정상 컬럼을 읽습니다.
+`MEISAI.RPT` 레코드는 명의 필드가 60byte 확보를 위해 넓어져(`MD-MEIGI-KANJI X(60)`) **98 byte**입니다(기존 58).
 `SORTDAT`는 그대로(키가 ASCII 숫자라 바이트 정렬이 곧 숫자순).
 
 ---
@@ -205,9 +241,10 @@ make GIXHOME=/opt/gixsql          # gixpp -> cobc。bin/*.cgi, bin/YAKANBAT, lib
 ※ 5-10 は正常型カラム(NUMBER の残高・金額・キー)をそのまま読む。出力は読みやすい LINE SEQUENTIAL。
 
 ```bash
-# コンテナ内で(exec シェルには entrypoint の ORA_* が無いので注入)
+# コンテナ内で(exec シェルには entrypoint の ORA_*/NLS_LANG が無いので注入)
 docker exec -i \
   -e ORA_CONN=oracle://oracle:1521/XEPDB1 -e ORA_USER=minibank -e ORA_PASS=minibank \
+  -e NLS_LANG=JAPANESE_JAPAN.JA16SJISTILDE \
   mb-cobol-sjis sh -c 'cd /app/build && mkdir -p data && sh run_batch.sh'
 # => [batch] all 10 steps done.
 ```

@@ -1,7 +1,7 @@
       *>****************************************************************
       *> ZANDAKA  -  残高照会 CGI (通常型/Shift-JIS DB版)
       *>   GET/POST: kouza=NNNNNNN。名義/種別/状態を通常列から直接取得。
-      *>   日本語列は UTF-8 バイトで PIC X に入り、そのまま JSON へ出力。
+      *>   日本語列は Shift-JIS バイトで PIC X に入り、そのまま JSON へ出力。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. ZANDAKA.

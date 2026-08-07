@@ -12,7 +12,10 @@
 **핵심 철학 (반드시 이해)**: 화면은 평범한 뱅킹 앱이고, DB는 **정상 타입 컬럼**으로 저장하되 문자셋을 메인프레임 관례에 맞춰 이원화한다 (사장님 지시: **Oracle = Shift-JIS, PostgreSQL = UTF-8**).
 - **Oracle(COBOL)** = **JA16SJIS(Shift-JIS) 문자셋 DB**. 키·금액 = `NUMBER`, 일본어 텍스트 = `VARCHAR2`(디스크에 Shift-JIS 바이트), 코드·일자 = `CHAR`.
 - **PostgreSQL(Java)** = **UTF-8**. 키·금액 = `integer/bigint/numeric`, 일본어 텍스트 = UTF-8 `varchar`.
-- 앱/HTTP/프론트는 전부 **UTF-8**. (COBOL측은 GixSQL/OCI 드라이버가 클라이언트 문자셋을 UTF-8로 강제 → DB는 Shift-JIS 저장, 앱은 UTF-8 수신.)
+- Java(TOBE)측 앱/HTTP/프론트는 전부 **UTF-8**.
+- **COBOL(ASIS)측은 2026-08부터 앱/HTTP도 Shift-JIS**(Instant Client를 Basic으로 바꿔 클라이언트
+  문자셋이 실제로 JA16SJIS를 따라가게 함). 쓰기 경로(회원가입/공지)만 `UTF2SJIS.c`로 브라우저의
+  UTF-8을 명시 변환. 상세는 `backend-cobol/README.md` "③ 2026-08 Shift-JIS 앱/파일 레벨 재전환".
 
 > ⚠️ **2026-07-30 마이그레이션 완료.** 이전에는 전 컬럼을 메인프레임 바이트(RAW)로 저장하고(JEF EBCDIC 텍스트 + COMP-3 금액 + 존10진 키), 앱측 코덱으로 왕복했습니다. 그 RAW/코덱 설계는 **전부 제거**되었습니다. 지금은 위의 정상 타입 구조이니, DB 컬럼은 정상 값(山田太郎 / 523400 등)으로 그대로 보이는 게 정상입니다.
 
@@ -150,7 +153,9 @@ docker compose -f backend-cobol/docker/compose.asis.yml up -d --build
 
 **전반**
 - **문자셋 이원화**: Oracle=JA16SJIS(Shift-JIS), PostgreSQL=UTF-8. 컬럼은 양쪽 다 정상 타입이라 DBeaver에서 일본어가 읽는 값 그대로 보임(디코드 뷰·함수 없음). 예전 RAW/JEF/COMP-3/존10진 + `V_*`/`FN_*` 구조는 2026-07-30에 전부 제거됨 — 옛 스크립트/뷰를 찾지 말 것.
-- COBOL측은 GixSQL/OCI 드라이버가 클라이언트 문자셋을 UTF-8로 강제(Instant Client basiclite에 변환기 없음). 그래서 NLS_LANG과 무관하게 DB는 Shift-JIS 저장, 앱/HTTP는 UTF-8. VARCHAR2 등가비교는 `RTRIM(:hv)`로.
+- COBOL측은 2026-08부터 Instant Client를 Basic(비-Lite)으로 바꿔 NLS_LANG이 실제로 적용된다.
+  DB·앱·HTTP 전부 Shift-JIS(이전엔 Instant Client Basic Lite에 변환기가 없어 UTF-8로 강제됐음).
+  VARCHAR2 등가비교는 `RTRIM(:hv)`로.
 
 **COBOL 빌드/배포**
 - `gixpp`(EXEC SQL 프리컴파일) 함정: SORT 못 다룸 → `SORTDAT/SORTRPT` 별 프로세스. 코덱 카피북은 **한 줄에 한 문장**(마침표 72칸 넘으면 무시됨). COPY는 `expand_copy.sh`로 평탄화 후 넘김. 긴 EXEC SQL 줄은 72칸 초과 시 호스트변수명 잘림.

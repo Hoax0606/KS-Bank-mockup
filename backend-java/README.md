@@ -21,6 +21,8 @@ COBOL ASIS 백엔드의 Java 이식. **일반 타입 + 평문 UTF-8 저장** (Po
 - ✅ **야간배치** — `POST /api/batch/run` (posting + **明細(D/T)** + 帳票 6종). COBOL 10스텝 대응:
   SORTDAT=SQL `ORDER BY`로 흡수, SORTRPT=`KanaSortKey`(UTF-8 바이트 카나 정렬)로 재구현.
   帳票 **파일 7종**을 `app.batch.output-dir`(기본 `./data`)에 출력 — 6종은 COBOL 서식 그대로.
+  실행: `sh run_batch.sh`(COBOL `backend-cobol/build/run_batch.sh`와 대칭되는 셸 래퍼 —
+  리눅스에서 JCL/`.ps1` 둘 다 못 써서 양쪽 다 `.sh`로 통일한 결정에 따른 것).
 - ✅ 헬스체크 `GET /api/health`, 예외 핸들러
 - ✅ **배치 파리티 검증 — `PARITY OK` (2026-08-04 실측, 帳票 7종 `diff` 무차이)**.
   `sh tools/parity/compare.sh` (픽스처 → 양쪽 배치 → 7개 `diff`).

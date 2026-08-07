@@ -2,7 +2,7 @@
       *> MKDAT  -  当日取引抽出 (通常型/Shift-JIS DB版)
       *>   DB の TORIHIKI を読み、97byte固定 ネイティブの TORIHIKI.DAT を
       *>   生成する。各列を通常型のホスト変数で受け取り、レコード項目へ
-      *>   そのまま MOVE(数字=ASCII表示, 金額=COMP-3, 摘要=UTF-8)。
+      *>   そのまま MOVE(数字=ASCII表示, 金額=COMP-3, 摘要=Shift-JIS)。
       *>   口座番号は 7->10 桁へ前ゼロ埋め(PIC 9(10))。YAKANBAT の入力。
       *>****************************************************************
        IDENTIFICATION DIVISION.
@@ -14,7 +14,11 @@
                ORGANIZATION IS SEQUENTIAL FILE STATUS IS FS.
        DATA DIVISION.
        FILE SECTION.
-       FD  F-OUT.
+       FD  F-OUT RECORD CONTAINS 97 CHARACTERS.
+      *>   ★2026-08 확인된 버그 수정: RECORD CONTAINS가 없으면 EXEC SQL
+      *>   FETCH 루프와 얽혀 특정 건수(9건+)에서 레코드 1건이 조용히
+      *>   누락됨(GnuCOBOL이 레코드 길이를 묵시적으로 잘못 추정하는 것으로
+      *>   보임). 명시적으로 길이를 지정해 해결.
        COPY WTRDAT.
        WORKING-STORAGE SECTION.
        01  OUT-PATH   PIC X(256).

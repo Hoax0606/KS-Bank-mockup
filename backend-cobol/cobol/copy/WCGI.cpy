@@ -1,8 +1,8 @@
       *>****************************************************************
       *> WCGI.cpy  -  CGI 共通ワーク(要求パース + 応答バッファ)
       *>   要求: REQUEST-METHOD / QUERY_STRING / CONTENT_LENGTH / stdin body
-      *>   応答: HTTP ヘッダ + JSON バディ(UTF-8 確定)。
-      *>   応答は CP930 RAW を JSON へ載せる直前に CP930->CP932->UTF-8 変換。
+      *>   応答: HTTP ヘッダ + JSON バディ(Shift-JIS確定、2026-08から。旧 CP930/
+      *>   RAW 前提の記述は §0-§9 初期設計の名残で無効 — CGIRESP.cbl 参照)。
       *>****************************************************************
        01  CGI-ENV.
            05  CGI-METHOD       PIC X(8).             *> GET / POST

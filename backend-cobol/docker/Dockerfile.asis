@@ -10,7 +10,11 @@
 FROM debian:12-slim
 
 ARG GIXSQL_VER=1.0.20b
-ARG INSTANTCLIENT_ZIP=instantclient-basiclite-linux.x64.zip
+# ★2026-08 Shift-JIS 앱/파일 레벨 재전환: Basic Lite에는 libociei.so(NLS 문자셋
+#   변환 데이터, JA16SJIS 포함)가 통째로 없어서 클라이언트 문자셋이 항상 UTF-8로
+#   강제된다(실측 확인: basiclite zip에 libociei.so 항목 자체가 없음, basic엔
+#   204MB로 존재). 배치/온라인이 실제로 Shift-JIS를 다루려면 Basic(비-Lite)가 필수.
+ARG INSTANTCLIENT_ZIP=instantclient-basic-linux.x64-23.26.0.0.0.zip
 ARG INSTANTCLIENT_SDK=instantclient-sdk-linux.x64.zip
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -29,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libspdlog-dev libfmt-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ---- Oracle Instant Client(basiclite + sdk) ----
+# ---- Oracle Instant Client(basic + sdk) ----
 #   ビルドコンテキスト = リポジトリルート。vendor は backend-cobol/docker/vendor/。
 COPY backend-cobol/docker/vendor/${INSTANTCLIENT_ZIP} /tmp/ic.zip
 COPY backend-cobol/docker/vendor/${INSTANTCLIENT_SDK} /tmp/icsdk.zip
@@ -57,7 +61,11 @@ COPY backend-cobol/ /app/
 # フロントエンド(無変更再利用)を配信ルートへ
 COPY frontend/ /app/frontend/
 RUN cd /app/build && make GIXHOME=${GIXHOME}
-# (JEF C ブリッジ / Java 変換サービスは Shift-JIS 전환으로 폐지)
+# (旧 JEF C ブリッジ / Java 変換サービスは 2026-07-30 の正常化で廃止済み)
+# ---- UTF-8 -> Shift-JIS(CP932) 変換ブリッジ(SIGNUP/NOTICE の書き込み経路用) ----
+#   glibc の iconv() を直接呼ぶだけの小さな C 関数。旧 JEFCONV.c と同じ呼出規約
+#   (長さは PIC 9(4) DISPLAY で渡す)だが、ネットワークサービスへは繋がない。
+RUN gcc -shared -fPIC /app/cobol/UTF2SJIS.c -o /app/build/lib/UTF2SJIS.so
 
 # ---- ランタイム環境(CGI/バッチ共通で継承) ----
 #   COB_LIBRARY_PATH: 動的 CALL するモジュール(.so)の探索先。

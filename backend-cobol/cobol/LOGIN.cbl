@@ -2,9 +2,9 @@
       *> LOGIN  -  ログイン CGI (通常型/Shift-JIS DB版)
       *>   POST: branch(店番3桁), acct(口座番号7桁=KOUZA_NO), pw
       *>   全列を通常型で直接照合/取得(RAW/JEF/COMP-3 コーデック廃止)。
-      *>   ※ DB は JA16SJIS 保存だが、GixSQL ドライバが取得時に UTF-8 へ
-      *>     変換する(NLS_LANG は無視)。よって日本語列は UTF-8 バイトで
-      *>     PIC X に入り、そのまま JSON(UTF-8)へ出力する。
+      *>   ※ DB は JA16SJIS 保存。2026-08 から Instant Client を Basic 化し
+      *>     NLS_LANG=JA16SJISTILDE が実際に効くため、日本語列は Shift-JIS
+      *>     バイトで PIC X に入り、そのまま JSON(Shift-JIS)へ出力する。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. LOGIN.

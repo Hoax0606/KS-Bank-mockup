@@ -2,7 +2,7 @@
       *> MEISAI  -  取引明細照会 CGI (オンライン 5種の1)
       *>   GET: kouza, [kbn=all|1|2|3], [from=YYYYMMDD], [to=YYYYMMDD]
       *>   取引後残高(afterBal)を累積計算し、新しい順に JSON 配列で返す。
-      *>   通常型/Shift-JIS DB版: 金額/口座=NUMBER, 摘要=VARCHAR2(UTF-8) 直接。
+      *>   通常型/Shift-JIS DB版: 金額/口座=NUMBER, 摘要=VARCHAR2(Shift-JIS) 直接。
       *>****************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. MEISAI.
@@ -202,7 +202,7 @@
            STRING FUNCTION TRIM(NUM-STR) DELIMITED SIZE
                   ',"memo":"' DELIMITED SIZE
                   INTO RESP-BUF WITH POINTER RESP-PTR
-      *>   摘要(VARCHAR2/UTF-8)をそのまま出力。空/LOW-VALUES は空文字。
+      *>   摘要(VARCHAR2/Shift-JIS)をそのまま出力。空/LOW-VALUES は空文字。
            IF RW-TEK(I) NOT = SPACES AND RW-TEK(I) NOT = LOW-VALUES
                STRING FUNCTION TRIM(RW-TEK(I)) DELIMITED SIZE
                       INTO RESP-BUF WITH POINTER RESP-PTR

@@ -26,9 +26,12 @@
            SELECT SW1    ASSIGN TO "sw1.tmp".
        DATA DIVISION.
        FILE SECTION.
-       FD  F-DAT.
+      *>   RECORD CONTAINS 명시(§MKDAT.cbl에서 확인된, 미명시 시 특정 건수에서
+      *>   레코드가 누락되는 버그의 예방 조치 — SORTDAT 자체는 SQL이 없어
+      *>   미확인이지만 안전하게 통일).
+       FD  F-DAT RECORD CONTAINS 97 CHARACTERS.
        01  DAT-REC        PIC X(97).
-       FD  F-OUT.
+       FD  F-OUT RECORD CONTAINS 97 CHARACTERS.
        01  OUT-REC        PIC X(97).
        SD  SW1.
        01  SW1-REC.

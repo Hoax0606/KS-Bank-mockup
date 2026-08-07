@@ -1,0 +1,26 @@
+--- /tmp/gixsql_orig/gixsql-1.0.20b/runtime/libgixsql-oracle/DbInterfaceOracle.cpp	2023-04-27 00:50:25.000000000 +0900
++++ /tmp/gixsql_patch/gixsql-1.0.20b/runtime/libgixsql-oracle/DbInterfaceOracle.cpp	2026-08-06 18:01:19.996157400 +0900
+@@ -122,11 +122,22 @@
+ 		lib_logger->warn("Setting the encoding is not supported on Oracle, set NLS_LANG before trying to connect");
+ 	}
+ 
++	// KS-Bank patch (2026-08): passing NULL here makes ODPI-C default
++	// commonParams.encoding/nencoding to "UTF-8" (see dpiContext__initCommonCreateParams
++	// in odpi/dpiContext.c), which is then passed straight to OCIEnvNlsCreate as an
++	// explicit non-zero charset id -- NLS_LANG is silently ignored no matter what it is
++	// set to. Explicitly nulling encoding/nencoding here makes ODPI-C pass charset id 0,
++	// which tells OCI to derive the client character set from NLS_LANG instead.
++	dpiCommonCreateParams commonParams;
++	dpiContext_initCommonCreateParams(odpi_global_context, &commonParams);
++	commonParams.encoding = NULL;
++	commonParams.nencoding = NULL;
++
+ 	int rc = dpiConn_create(odpi_global_context,
+ 		_conn_info->getUsername().c_str(), _conn_info->getUsername().size(),
+ 		_conn_info->getPassword().c_str(), _conn_info->getPassword().size(),
+ 		conn_string.c_str(), conn_string.size(),
+-		NULL, NULL, &conn);
++		&commonParams, NULL, &conn);
+ 
+ 	if (rc < 0) {
+ 		dpiRetrieveError(rc);
