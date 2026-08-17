@@ -38,10 +38,19 @@ services:
         # 앱은 호스트명 'oracle' 로 접속한다(서버는 --add-host oracle:<IP> 로 동일 효과).
         aliases: [oracle]
     volumes:
+      # ★2026-08 추가: DB 파일 자체를 영구 볼륨에 저장. 이게 없으면 `docker compose
+      #   down`으로 컨테이너를 지울 때마다 DB가 통째로 사라져서, 재기동마다 매번
+      #   "새 DB 생성+스키마+시드 적재"(10~20분)를 처음부터 다시 하게 된다.
+      #   이 볼륨이 있으면: 최초 1회만 오래 걸리고, 이후 재기동은 기존 DB를 그냥
+      #   여는 것뿐이라 수십 초 안에 끝난다. (완전히 새로 시작하고 싶으면
+      #   `docker compose down -v`로 이 볼륨까지 지우면 됨)
+      - oracle_data:/opt/oracle/oradata
       # DB 생성 직후 1회 실행되는 초기화 스크립트(runUserScripts.sh 가 sysdba 로 실행).
       # 알파벳 순으로 돌므로 유저 생성 -> DDL -> 시드 순서가 보장된다.
       # ※ sql/ 디렉터리를 통째로 마운트하면 90_parity_fixture.sql(거래 전건 삭제)과
       #   99_reset.sql 까지 실행되므로, 필요한 3개만 개별 마운트한다.
+      # ※ 위 oracle_data 볼륨에 기존 DB가 있으면 이 스크립트들은(이미 DB가 있으므로)
+      #   재실행되지 않는다 — Oracle 이미지 자체의 표준 동작.
       - ./oracle-sjis/setup/00_mkuser.sql:/opt/oracle/scripts/setup/00_mkuser.sql:ro
       - ../sql/01_ddl.sql:/opt/oracle/scripts/setup/01_ddl.sql:ro
       - ../sql/02_seed.sql:/opt/oracle/scripts/setup/02_seed.sql:ro
@@ -82,3 +91,6 @@ services:
     ports:
       - "8092:80"                        # SERVER-SETUP §3-2 와 동일(화면+API)
     restart: unless-stopped
+
+volumes:
+  oracle_data:

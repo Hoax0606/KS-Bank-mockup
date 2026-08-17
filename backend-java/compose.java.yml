@@ -20,6 +20,10 @@ services:
       #    호스트 네이티브 PostgreSQL 5432 와도 충돌하지 않는다)
       - "5434:5432"
     volumes:
+      # ★2026-08 추가: DB 파일을 영구 볼륨에 저장 — 없으면 `docker compose down`할
+      # 때마다 데이터가 사라지고 재기동마다 초기화 스크립트를 다시 돌리게 된다.
+      # (완전히 새로 시작하려면 `docker compose down -v`로 이 볼륨까지 삭제)
+      - postgres_data:/var/lib/postgresql/data
       - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./src/main/resources/db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
     healthcheck:
@@ -47,3 +51,6 @@ services:
       # 야간배치 帳票 7종 산출물(app.batch.output-dir=./data → /app/data)
       - ./data:/app/data
     restart: unless-stopped
+
+volumes:
+  postgres_data:
