@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.5</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.ksbank</groupId>
+  <artifactId>minibank-backend-strict</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <name>minibank-backend-strict</name>
+  <description>KS-Bank mockup — COBOL to Java 1:1 structural port (online: Spring MVC thin adapters; batch: plain-Java standalone programs, no Spring context)</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <!-- ★ spring-boot-starter-jdbc/JPA는 의도적으로 안 쓴다.
+         온라인 프로그램들도 raw JDBC(DriverManager)로 직접 커넥션을 관리해 COBOL의
+         EXEC SQL/SQLCODE/COMMIT/ROLLBACK 지점을 명시적으로 재현한다(§B 공유 Db 유틸). -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!-- ★배치 프로그램(10개)은 Spring Boot fat jar 밖에서 독립 JVM 프로세스로 실행된다
+           (run_batch.sh 참고). fat jar의 BOOT-INF/lib 구조는 `java -cp app.jar <FQCN>`으로
+           직접 접근 불가하므로, flat classpath용으로 의존성 jar들을 별도 디렉터리에 풀어둔다. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-dependencies</id>
+            <phase>package</phase>
+            <goals><goal>copy-dependencies</goal></goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/dependency</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,0 +1,48 @@
+# ============================================================
+#  backend-java-strict 스택 (COBOL 1:1 구조 포팅 검증용)
+#  ※ backend-cobol(Oracle) / backend-java(관용적 Spring 포팅) 와 완전히 독립.
+#     포트도 안 겹치게 분리: Oracle 1522, 기존 Java 8081/5434, COBOL-nginx 8092.
+#  실행(리포지토리 루트에서):
+#     docker compose -f backend-java-strict/compose.strict.yml up -d --build
+#     -> http://localhost:8082/
+# ============================================================
+name: minibank-java-strict
+services:
+  postgres:
+    image: postgres:16
+    container_name: mbjs-postgres
+    environment:
+      POSTGRES_DB: minibankstrict
+      POSTGRES_USER: minibank
+      POSTGRES_PASSWORD: minibank
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_strict_data:/var/lib/postgresql/data
+      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./src/main/resources/db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U minibank"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    container_name: mbjs-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/minibankstrict
+      DB_USER: minibank
+      DB_PASS: minibank
+      TZ: Asia/Tokyo
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+volumes:
+  postgres_strict_data:

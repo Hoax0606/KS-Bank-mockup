@@ -1,0 +1,17 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: minibank-backend-strict
+  # ★JPA/spring-jdbc DataSource 자동구성을 쓰지 않는다 — 온라인 프로그램들은
+  #   com.ksbank.minibank.strict.online.db.Db 가 DriverManager로 요청마다 직접 커넥션을
+  #   얻는다(COBOL CGI 프로세스가 매 요청 GixSQL로 새로 CONNECT하는 것과 동일한 모양).
+  #   DB_URL/DB_USER/DB_PASS 는 Db.java 가 System.getenv 로 직접 읽는다.
+
+# 참고: 이 백엔드는 backend-java 와 별도의 PostgreSQL(minibankstrict, 5435)에 붙는다.
