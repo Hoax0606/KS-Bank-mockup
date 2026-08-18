@@ -16,8 +16,8 @@ public class CgiError extends RuntimeException {
         this.errorKey = errorKey;
     }
 
-    public static CgiError err400(String key) { return new CgiError(400, key); }
-    public static CgiError err404(String key) { return new CgiError(404, key); }
-    public static CgiError err409(String key) { return new CgiError(409, key); }
-    public static CgiError err500(String key) { return new CgiError(500, key); }
+    public static CgiError ERR_400(String key) { return new CgiError(400, key); }
+    public static CgiError ERR_404(String key) { return new CgiError(404, key); }
+    public static CgiError ERR_409(String key) { return new CgiError(409, key); }
+    public static CgiError ERR_500(String key) { return new CgiError(500, key); }
 }

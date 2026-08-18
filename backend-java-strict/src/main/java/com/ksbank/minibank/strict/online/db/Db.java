@@ -17,14 +17,14 @@ public final class Db {
     }
 
     /** COBOL DB-CONNECT. 실패 시 COBOL과 동일하게 500 db_connect_failed. */
-    public static Connection connect() {
+    public static Connection DB_CONNECT() {
         try {
             Connection conn = DriverManager.getConnection(
                 System.getenv("DB_URL"), System.getenv("DB_USER"), System.getenv("DB_PASS"));
             conn.setAutoCommit(false);
             return conn;
         } catch (SQLException e) {
-            throw CgiError.err500("db_connect_failed");
+            throw CgiError.ERR_500("db_connect_failed");
         }
     }
 
@@ -33,7 +33,7 @@ public final class Db {
      * 이미 ROLLBACK 문을 실행한 뒤 이 절차를 호출하므로, 여기서도 무조건 COMMIT을
      * 시도하는 모양을 유지한다 — 단 이미 닫힌 커넥션이면 멱등하게 건너뛴다.
      */
-    public static void disconnect(Connection conn) {
+    public static void DB_DISCONNECT(Connection conn) {
         if (conn == null) return;
         try {
             if (!conn.isClosed()) {

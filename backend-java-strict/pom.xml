@@ -35,6 +35,23 @@
       <artifactId>postgresql</artifactId>
     </dependency>
 
+    <!-- SQL은 Mapper(interface + XML)로 뺀다. mybatis-spring-boot-starter는 안 쓴다 —
+         그건 DataSource(커넥션 풀) 기반으로 SqlSessionFactory를 자동구성하는데, 이 모듈은
+         요청마다 Db.DB_CONNECT()로 새 커넥션을 얻는 구조(COBOL의 매 요청 CONNECT 재현)라
+         풀을 두면 안 된다. 순수 mybatis 코어만 받아 SqlSessionFactory를 직접 만들고,
+         매 요청 openSession(conn)에 그 커넥션을 그대로 넘긴다(db/MyBatisConfig 참고). -->
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.5.16</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

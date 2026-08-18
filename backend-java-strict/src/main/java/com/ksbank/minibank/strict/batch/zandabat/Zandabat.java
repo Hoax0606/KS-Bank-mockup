@@ -34,8 +34,16 @@ public class Zandabat extends BatchProgram {
              ResultSet rs = ps.executeQuery();
              LineSequentialWriter w = new LineSequentialWriter(outPath)) {
             this.out = w;
-            while (rs.next()) {
-                emit(rs);
+            // COBOL: PERFORM UNTIL SQLCODE NOT = 0 는 EOF(SQLCODE=100)와 진짜 SQL 에러를
+            // 구분하지 않는다 — 스캔 도중 실제 DB 에러가 나도 루프가 그냥 끝나고, 그때까지
+            // 모은 값으로 TOTAL 줄까지 정상 출력한다. 동일하게 재현: SQLException을 조용히
+            // 삼켜 루프만 빠져나오고 이후 로직은 그대로 진행한다.
+            try {
+                while (rs.next()) {
+                    emit(rs);
+                }
+            } catch (SQLException ignored) {
+                // 의도적으로 무시 — COBOL의 SQLCODE 관용구는 EOF와 에러를 구분하지 않는다.
             }
             out.writeLine("TOTAL  " + "BAL=" + Cobol.pic9(tBal, 15));
         }

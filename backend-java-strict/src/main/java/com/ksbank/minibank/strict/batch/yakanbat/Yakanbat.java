@@ -197,15 +197,21 @@ public class Yakanbat extends BatchProgram {
         long hvKz7 = Cobol.truncate(curKouza, 7);
         long hvNewBal = Cobol.truncate(accNew, 11);
 
+        // COBOL: EXEC SQL UPDATE KOUZA ... END-EXEC 뒤에 SQLCODE 체크가 전혀 없다.
+        // UPDATE가 실패해도(예: 락 충돌, 제약 위반) 무시하고 그대로 다음 문장(COMMIT)으로
+        // 진행하는 것이 원본의 실제 동작이므로, 여기서도 SQLException을 조용히 삼켜서
+        // (로그도 남기지 않음 — COBOL도 아무 표시를 남기지 않는다) 이후 로직이 UPDATE
+        // 성공 여부와 무관하게 무조건 실행되도록 재현한다.
         try (PreparedStatement ps = conn.prepareStatement(
                 "UPDATE KOUZA SET ZANDAKA = ? WHERE KOUZA_NO = ?")) {
             ps.setLong(1, hvNewBal);
             ps.setLong(2, hvKz7);
             ps.executeUpdate();
+        } catch (SQLException ignored) {
+            // 의도적으로 무시 — COBOL 원본에 SQLCODE 체크 자체가 없다.
         }
-        // EXEC SQL COMMIT — 계좌별 즉시 커밋(전체 일괄 아님). UPDATE 결과에 대한 별도
-        // SQLCODE 체크·롤백 없이 그대로 다음 계좌로 진행한다(원본과 동일한 무방비 지점 —
-        // 이 메서드 밖에서 SQLException/IOException이 나면 그대로 위로 전파되어 프로세스가 죽는다).
+        // EXEC SQL COMMIT — 계좌별 즉시 커밋(전체 일괄 아님). UPDATE 성공/실패와 무관하게
+        // 그대로 다음 계좌로 진행한다(원본과 동일).
         conn.commit();
 
         accRun = accOpen;

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ksbank.minibank.strict.online.dao.HoldingsDao">
+
+    <select id="select_01" parameterType="com.ksbank.minibank.strict.online.dto.HoldingsDto" resultType="long"><![CDATA[
+        SELECT COUNT(*) FROM kouza WHERE kouza_no = #{HV_KOUZA}
+    ]]></select>
+
+    <resultMap id="select_02_resultMap" type="com.ksbank.minibank.strict.online.dto.HoldingsDto">
+        <result property="HV_KANJI" column="hv_kanji"/>
+        <result property="HV_SHU" column="hv_shu"/>
+        <result property="HV_ZAN" column="hv_zan"/>
+        <result property="HV_JOU" column="hv_jou"/>
+        <result property="HV_TYPE" column="hv_type"/>
+        <result property="HV_BR" column="hv_br"/>
+        <result property="HV_PRIM" column="hv_prim"/>
+        <result property="HV_BIRTH" column="hv_birth"/>
+        <result property="HV_SEX" column="hv_sex"/>
+        <result property="HV_ZIP" column="hv_zip"/>
+        <result property="HV_ADDR" column="hv_addr"/>
+        <result property="HV_PHONE" column="hv_phone"/>
+        <result property="HV_EMAIL" column="hv_email"/>
+        <result property="HV_JOB" column="hv_job"/>
+    </resultMap>
+
+    <select id="select_02" parameterType="com.ksbank.minibank.strict.online.dto.HoldingsDto" resultMap="select_02_resultMap"><![CDATA[
+        SELECT k.meigi_kanji AS hv_kanji, k.shubetsu AS hv_shu,
+               k.zandaka AS hv_zan, k.joutai AS hv_jou,
+               x.acct_type AS hv_type, x.branch_code AS hv_br, x.is_primary AS hv_prim,
+               x.birth AS hv_birth, x.sex AS hv_sex, x.zip AS hv_zip, x.addr AS hv_addr,
+               x.phone AS hv_phone, x.email AS hv_email, x.job AS hv_job
+          FROM kouza k, kouza_ext x
+         WHERE x.kouza_no = k.kouza_no
+           AND k.kouza_no = #{HV_KOUZA}
+    ]]></select>
+
+</mapper>

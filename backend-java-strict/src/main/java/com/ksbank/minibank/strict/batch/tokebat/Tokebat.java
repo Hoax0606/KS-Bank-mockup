@@ -7,6 +7,7 @@ import com.ksbank.minibank.strict.batch.common.LineSequentialWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
  * {@code TOKEBAT.cbl} 1:1 포팅 — KOUZA에서 계좌수/종별내역(보통/당좌)/동결수/총잔고를,
@@ -31,8 +32,16 @@ public class Tokebat extends BatchProgram {
                 "SELECT SHUBETSU, JOUTAI, ZANDAKA FROM KOUZA");
              ResultSet rs = ps.executeQuery();
              LineSequentialWriter out = new LineSequentialWriter(outPath)) {
-            while (rs.next()) {
-                accum(rs);
+            // COBOL: PERFORM UNTIL SQLCODE NOT = 0 는 EOF(SQLCODE=100)와 진짜 SQL 에러를
+            // 구분하지 않는다 — KOUZA 커서 스캔 도중 진짜 DB 에러가 나도 루프가 그냥 끝나고,
+            // 그때까지 집계한 값 그대로 이어서(TORIHIKI COUNT(*) 조회 포함) 정상 종료한다.
+            // 동일하게 재현: SQLException을 조용히 삼켜 루프만 빠져나온다.
+            try {
+                while (rs.next()) {
+                    accum(rs);
+                }
+            } catch (SQLException ignored) {
+                // 의도적으로 무시 — COBOL의 SQLCODE 관용구는 EOF와 에러를 구분하지 않는다.
             }
 
             try (PreparedStatement ps2 = conn.prepareStatement("SELECT COUNT(*) FROM TORIHIKI");

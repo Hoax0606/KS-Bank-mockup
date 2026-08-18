@@ -5,10 +5,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.ksbank.minibank.strict.online.cgi.CgiResp;
 
 /**
  * COBOL copy/PERRJSON.cpy 의 ERR-EMIT(STRING '{"ok":false,"error":"' ... '"}') 대응.
  * Jackson을 쓰지 않고 STRING 문처럼 수동으로 문자열을 결합한다.
+ * ERR-EMIT도 {@code CALL "CGIRESP"}를 거치므로 {@link CgiResp}로 no-store 헤더를 붙인다.
  */
 @RestControllerAdvice
 public class CgiErrorHandler {
@@ -29,7 +31,7 @@ public class CgiErrorHandler {
 
     private static ResponseEntity<String> emit(int status, String errorKey) {
         String body = "{\"ok\":false,\"error\":\"" + errorKey + "\"}";
-        return ResponseEntity.status(status)
+        return CgiResp.status(status)
             .contentType(MediaType.valueOf("application/json;charset=UTF-8"))
             .body(body);
     }

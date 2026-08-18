@@ -37,7 +37,12 @@ public abstract class BatchProgram {
             // 하드코딩돼 있다(복사본이 공유하는 리터럴 버그). MKDAT에서 실패하든
             // TOKEBAT에서 실패하든 이 문자열이 그대로 찍힌다 — tag 인자는 로그 목적으로
             // 남겨두되, 원본의 이 비대칭을 그대로 재현하기 위해 메시지 자체는 고정한다.
-            System.err.println("[YAKANBAT] DB connect failed SQLCODE=" + e.getMessage()
+            //
+            // 스트림도 원본과 다르다: PDBCONB.cpy의 이 DISPLAY 문에는 UPON SYSERR 절이
+            // 없다(원본 확인 완료) — 정상 완료 로그들(각 프로그램 MAIN의 DISPLAY ... UPON
+            // SYSERR)과 달리, 연결 실패 메시지만 GnuCOBOL 기본 대상인 표준출력(stdout)으로
+            // 나간다. 이 스트림 비대칭을 그대로 재현하기 위해 System.err가 아닌 System.out을 쓴다.
+            System.out.println("[YAKANBAT] DB connect failed SQLCODE=" + e.getMessage()
                     + " (program=" + tag + ")");
             System.exit(1);
             throw new IllegalStateException("unreachable");

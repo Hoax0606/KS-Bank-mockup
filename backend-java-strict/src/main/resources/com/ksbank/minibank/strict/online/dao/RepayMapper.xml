@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ksbank.minibank.strict.online.dao.RepayDao">
+
+    <select id="select_01" parameterType="com.ksbank.minibank.strict.online.dto.RepayDto" resultType="long"><![CDATA[
+        SELECT COUNT(*) FROM loan_asis
+         WHERE loan_id = #{HV_LOANID} AND status = #{HV_ACT}
+    ]]></select>
+
+    <resultMap id="select_02_resultMap" type="com.ksbank.minibank.strict.online.dto.RepayDto">
+        <result property="HV_BAL" column="balance"/>
+        <result property="HV_RATE" column="rate"/>
+        <result property="HV_KOUZA" column="kouza_no"/>
+    </resultMap>
+
+    <select id="select_02" parameterType="com.ksbank.minibank.strict.online.dto.RepayDto" resultMap="select_02_resultMap"><![CDATA[
+        SELECT balance, rate, kouza_no
+          FROM loan_asis WHERE loan_id = #{HV_LOANID}
+    ]]></select>
+
+    <select id="select_03" parameterType="com.ksbank.minibank.strict.online.dto.RepayDto" resultType="long"><![CDATA[
+        SELECT zandaka FROM kouza WHERE kouza_no = #{HV_KOUZA}
+    ]]></select>
+
+    <update id="update_01" parameterType="com.ksbank.minibank.strict.online.dto.RepayDto"><![CDATA[
+        UPDATE kouza SET zandaka = #{HV_ZAN} WHERE kouza_no = #{HV_KOUZA}
+    ]]></update>
+
+    <update id="update_02" parameterType="com.ksbank.minibank.strict.online.dto.RepayDto"><![CDATA[
+        UPDATE loan_asis
+           SET balance = 0, status = #{HV_CLST}, closed_date = #{WK_CLOSED_DATE}
+         WHERE loan_id = #{HV_LOANID}
+    ]]></update>
+
+    <update id="update_03" parameterType="com.ksbank.minibank.strict.online.dto.RepayDto"><![CDATA[
+        UPDATE loan_asis SET balance = #{HV_NEWBAL} WHERE loan_id = #{HV_LOANID}
+    ]]></update>
+
+    <select id="select_04" resultType="long"><![CDATA[
+        SELECT nextval('seq_repay_asis')
+    ]]></select>
+
+    <insert id="insert_01" parameterType="com.ksbank.minibank.strict.online.dto.RepayDto"><![CDATA[
+        INSERT INTO loan_repay_asis
+          (repay_id, loan_id, principal, interest, fee, total)
+        VALUES (#{HV_REPID}, #{HV_LOANID}, #{HV_PRIN}, #{HV_INT}, #{HV_FEE}, #{HV_TOTAL})
+    ]]></insert>
+
+</mapper>

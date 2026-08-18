@@ -28,11 +28,16 @@ public class Mkdat extends BatchProgram {
         if (outPath == null || outPath.isEmpty()) outPath = "./data/TORIHIKI.DAT";
 
         Connection conn = dbConnect("MKDAT");
-        try (PreparedStatement ps = conn.prepareStatement(
+        // MKDAT.cbl MAIN 단락 순서: PERFORM DB-CONNECT -> OPEN OUTPUT F-OUT ->
+        // EXEC SQL OPEN C-TR. 즉 출력 파일을 먼저 열고 그 다음에 커서를 연다.
+        // try-with-resources 선언 순서(= 오픈 순서)를 원본과 동일하게 맞춘다 —
+        // 자원 해제는 선언의 역순(커서 CLOSE 먼저, 파일 CLOSE 나중)이라
+        // COBOL의 EXEC SQL CLOSE C-TR -> CLOSE F-OUT 순서와도 일치한다.
+        try (FixedWidthWriter out = new FixedWidthWriter(outPath, Wtrdat.RECORD_LEN);
+             PreparedStatement ps = conn.prepareStatement(
                 "SELECT TORIHIKI_ID, KOUZA_NO, TORIHIKI_DT, TORIHIKI_KBN, KINGAKU, "
                         + "AITE_KOUZA, TESURYO, TEKIYOU FROM TORIHIKI ORDER BY KOUZA_NO, TORIHIKI_ID");
-             ResultSet rs = ps.executeQuery();
-             FixedWidthWriter out = new FixedWidthWriter(outPath, Wtrdat.RECORD_LEN)) {
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 out.write(buildRec(rs));
                 nOut++;

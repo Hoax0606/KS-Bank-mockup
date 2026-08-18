@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ksbank.minibank.strict.online.dao.NoticeDao">
+
+    <resultMap id="select_01_resultMap" type="com.ksbank.minibank.strict.online.dto.CNoticeDto">
+        <result property="C_DATE" column="c_date"/>
+        <result property="C_TAG" column="c_tag"/>
+        <result property="C_TITLE" column="c_title"/>
+    </resultMap>
+
+    <select id="select_01" parameterType="com.ksbank.minibank.strict.online.dto.NoticeDto" resultMap="select_01_resultMap"><![CDATA[
+        SELECT notice_date AS c_date, tag AS c_tag, title AS c_title
+          FROM notice_asis
+         WHERE is_active = #{HV_ACT}
+         ORDER BY notice_date DESC, notice_id DESC
+    ]]></select>
+
+    <select id="select_02" resultType="long"><![CDATA[
+        SELECT nextval('seq_notice_asis')
+    ]]></select>
+
+    <insert id="insert_01" parameterType="com.ksbank.minibank.strict.online.dto.NoticeDto"><![CDATA[
+        INSERT INTO notice_asis (notice_id, notice_date, tag, title, body, is_active)
+        VALUES (#{HV_NID}, #{HV_DATE}, RTRIM(#{HV_TAG}), RTRIM(#{HV_TITLE}), NULL, #{HV_ACT})
+    ]]></insert>
+
+    <insert id="insert_02" parameterType="com.ksbank.minibank.strict.online.dto.NoticeDto"><![CDATA[
+        INSERT INTO notice_asis (notice_id, notice_date, tag, title, body, is_active)
+        VALUES (#{HV_NID}, #{HV_DATE}, RTRIM(#{HV_TAG}), RTRIM(#{HV_TITLE}), RTRIM(#{HV_BODY}), #{HV_ACT})
+    ]]></insert>
+
+</mapper>

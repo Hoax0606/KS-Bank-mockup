@@ -17,7 +17,7 @@ public class HealthController {
         boolean dbUp = true;
         Connection conn = null;
         try {
-            conn = Db.connect();
+            conn = Db.DB_CONNECT();
             try (Statement st = conn.createStatement()) {
                 st.execute("SELECT 1");
             }
@@ -26,7 +26,7 @@ public class HealthController {
         } finally {
             if (conn != null) {
                 try {
-                    Db.disconnect(conn);
+                    Db.DB_DISCONNECT(conn);
                 } catch (Exception ignore) {
                     // best-effort
                 }

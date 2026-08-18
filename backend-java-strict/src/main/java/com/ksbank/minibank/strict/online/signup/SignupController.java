@@ -1,17 +1,24 @@
 package com.ksbank.minibank.strict.online.signup;
 
 import com.ksbank.minibank.strict.online.cgi.CgiRequest;
+import com.ksbank.minibank.strict.online.cgi.CgiResp;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 얇은 어댑터. 실제 로직은 {@link Signup}(COBOL SIGNUP.cbl 1:1 포팅)에 위임. */
 @RestController
 public class SignupController {
 
+    private final SignupService signupService;
+
+    public SignupController(SignupService signupService) {
+        this.signupService = signupService;
+    }
+
     @PostMapping(value = "/api/signup", produces = MediaType.APPLICATION_JSON_VALUE)
-    public String signup(HttpServletRequest req) {
-        return new Signup().run(new CgiRequest(req));
+    public ResponseEntity<String> signup(HttpServletRequest req) {
+        return CgiResp.ok(signupService.MAIN(new CgiRequest(req)));
     }
 }
