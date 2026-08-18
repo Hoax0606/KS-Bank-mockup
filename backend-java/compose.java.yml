@@ -31,6 +31,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    # ★2026-08 추가: 이게 없으면 Docker 엔진/WSL2 가 재시작될 때 app(restart:
+    # unless-stopped)만 자동으로 되살아나고 postgres 는 멈춘 채로 남는다 —
+    # 실제로 이 상태로 방치돼 DB 접속 불가 장애가 발생한 적이 있다.
+    restart: unless-stopped
 
   app:
     build: .

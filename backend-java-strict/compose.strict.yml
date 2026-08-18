@@ -26,6 +26,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    # ★이게 없으면 Docker 엔진/WSL2 가 재시작될 때 app(restart: unless-stopped)만
+    # 자동으로 되살아나고 postgres 는 멈춘 채로 남는다 — backend-java 의 compose.java.yml
+    # 에서 실제로 이 문제가 발생해서 여기도 처음부터 넣는다.
+    restart: unless-stopped
 
   app:
     build: .
