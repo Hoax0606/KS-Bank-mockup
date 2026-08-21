@@ -1,8 +1,8 @@
 package com.ksbank.minibank.strict.online.notice;
 
-import com.ksbank.minibank.strict.online.cgi.CgiRequest;
+import com.ksbank.minibank.strict.online.dto.NOTICEDto;
 
-public interface NoticeService {
+public interface NOTICEService {
 
-    String MAIN(CgiRequest cgi);
+    void MAIN(NOTICEDto dto);
 }

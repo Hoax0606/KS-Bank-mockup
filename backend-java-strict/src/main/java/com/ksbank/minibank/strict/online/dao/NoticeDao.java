@@ -1,18 +1,20 @@
 package com.ksbank.minibank.strict.online.dao;
 
-import java.util.List;
-import org.apache.ibatis.annotations.Mapper;
-import com.ksbank.minibank.strict.online.dto.CNoticeDto;
-import com.ksbank.minibank.strict.online.dto.NoticeDto;
+import org.apache.ibatis.cursor.Cursor;
+import com.ksbank.minibank.strict.online.dto.CNOTICEDto;
+import com.ksbank.minibank.strict.online.dto.NOTICEDto;
 
-@Mapper
-public interface NoticeDao {
+public interface NOTICEDao {
 
-    List<CNoticeDto> select_01(NoticeDto dto);
+    // EXEC SQL DECLARE C-NOTICE CURSOR FOR ... / EXEC SQL OPEN C-NOTICE END-EXEC
+    Cursor<CNOTICEDto> select_01(NOTICEDto dto);
 
-    long select_02(NoticeDto dto);
+    // EXEC SQL SELECT SEQ_NOTICE_ASIS.NEXTVAL INTO :HV-NID FROM DUAL END-EXEC
+    long select_02(NOTICEDto dto);
 
-    int insert_01(NoticeDto dto);
+    // IF WK-BODY = SPACES EXEC SQL INSERT ... NULL ... END-EXEC (본문 없음)
+    int insert_01(NOTICEDto dto);
 
-    int insert_02(NoticeDto dto);
+    // ELSE EXEC SQL INSERT ... RTRIM(:HV-BODY) ... END-EXEC (본문 있음)
+    int insert_02(NOTICEDto dto);
 }

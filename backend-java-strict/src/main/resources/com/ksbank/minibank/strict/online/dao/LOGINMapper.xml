@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ksbank.minibank.strict.online.dao.LOGINDao">
+
+    <!-- EXEC SQL SELECT COUNT(*) INTO :HV-CNT FROM KOUZA_EXT
+          WHERE BRANCH_CODE = RTRIM(:HV-BR) AND KOUZA_NO = :HV-KOUZA AND PASSWORD = RTRIM(:HV-PW) -->
+    <select id="select_01" parameterType="LOGINDto" resultType="long"><![CDATA[
+        SELECT COUNT(*)
+          FROM KOUZA_EXT
+         WHERE BRANCH_CODE = RTRIM(#{HV_BR})
+           AND KOUZA_NO    = #{HV_KOUZA}
+           AND PASSWORD    = RTRIM(#{HV_PW})
+    ]]></select>
+
+    <!-- EXEC SQL SELECT K.MEIGI_KANJI, K.SHUBETSU, K.ZANDAKA, K.JOUTAI, X.ACCT_TYPE
+            INTO :HV-KANJI, :HV-SHU, :HV-ZAN, :HV-JOU, :HV-TYPE
+            FROM KOUZA K, KOUZA_EXT X
+           WHERE X.KOUZA_NO = K.KOUZA_NO AND K.KOUZA_NO = :HV-KOUZA -->
+    <select id="select_02" parameterType="LOGINDto" resultType="LOGINDto"><![CDATA[
+        SELECT K.MEIGI_KANJI AS hv_kanji, K.SHUBETSU AS hv_shu,
+               K.ZANDAKA AS hv_zan, K.JOUTAI AS hv_jou, X.ACCT_TYPE AS hv_type
+          FROM KOUZA K, KOUZA_EXT X
+         WHERE X.KOUZA_NO = K.KOUZA_NO
+           AND K.KOUZA_NO = #{HV_KOUZA}
+    ]]></select>
+
+</mapper>

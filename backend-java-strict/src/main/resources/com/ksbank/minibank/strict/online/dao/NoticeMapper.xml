@@ -1,32 +1,38 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.ksbank.minibank.strict.online.dao.NoticeDao">
+<mapper namespace="com.ksbank.minibank.strict.online.dao.NOTICEDao">
 
-    <resultMap id="select_01_resultMap" type="com.ksbank.minibank.strict.online.dto.CNoticeDto">
-        <result property="C_DATE" column="c_date"/>
-        <result property="C_TAG" column="c_tag"/>
-        <result property="C_TITLE" column="c_title"/>
-    </resultMap>
-
-    <select id="select_01" parameterType="com.ksbank.minibank.strict.online.dto.NoticeDto" resultMap="select_01_resultMap"><![CDATA[
+    <!-- EXEC SQL DECLARE C-NOTICE CURSOR FOR SELECT NOTICE_DATE, TAG, TITLE
+           FROM NOTICE_ASIS WHERE IS_ACTIVE = :HV-ACT
+          ORDER BY NOTICE_DATE DESC, NOTICE_ID DESC -->
+    <select id="select_01" parameterType="NOTICEDto" resultType="CNOTICEDto"><![CDATA[
         SELECT notice_date AS c_date, tag AS c_tag, title AS c_title
-          FROM notice_asis
-         WHERE is_active = #{HV_ACT}
-         ORDER BY notice_date DESC, notice_id DESC
+          FROM NOTICE_ASIS
+         WHERE IS_ACTIVE = #{HV_ACT}
+         ORDER BY NOTICE_DATE DESC, NOTICE_ID DESC
     ]]></select>
 
+    <!-- EXEC SQL SELECT SEQ_NOTICE_ASIS.NEXTVAL INTO :HV-NID FROM DUAL END-EXEC -->
     <select id="select_02" resultType="long"><![CDATA[
         SELECT nextval('seq_notice_asis')
     ]]></select>
 
-    <insert id="insert_01" parameterType="com.ksbank.minibank.strict.online.dto.NoticeDto"><![CDATA[
-        INSERT INTO notice_asis (notice_id, notice_date, tag, title, body, is_active)
-        VALUES (#{HV_NID}, #{HV_DATE}, RTRIM(#{HV_TAG}), RTRIM(#{HV_TITLE}), NULL, #{HV_ACT})
+    <!-- IF WK-BODY = SPACES EXEC SQL INSERT ... NULL ... END-EXEC END-IF -->
+    <insert id="insert_01" parameterType="NOTICEDto"><![CDATA[
+        INSERT INTO NOTICE_ASIS
+          (NOTICE_ID, NOTICE_DATE, TAG, TITLE, BODY, IS_ACTIVE)
+        VALUES
+          (#{HV_NID}, #{HV_DATE}, RTRIM(#{HV_TAG}),
+           RTRIM(#{HV_TITLE}), NULL, #{HV_ACT})
     ]]></insert>
 
-    <insert id="insert_02" parameterType="com.ksbank.minibank.strict.online.dto.NoticeDto"><![CDATA[
-        INSERT INTO notice_asis (notice_id, notice_date, tag, title, body, is_active)
-        VALUES (#{HV_NID}, #{HV_DATE}, RTRIM(#{HV_TAG}), RTRIM(#{HV_TITLE}), RTRIM(#{HV_BODY}), #{HV_ACT})
+    <!-- ELSE EXEC SQL INSERT ... RTRIM(:HV-BODY) ... END-EXEC -->
+    <insert id="insert_02" parameterType="NOTICEDto"><![CDATA[
+        INSERT INTO NOTICE_ASIS
+          (NOTICE_ID, NOTICE_DATE, TAG, TITLE, BODY, IS_ACTIVE)
+        VALUES
+          (#{HV_NID}, #{HV_DATE}, RTRIM(#{HV_TAG}),
+           RTRIM(#{HV_TITLE}), RTRIM(#{HV_BODY}), #{HV_ACT})
     ]]></insert>
 
 </mapper>

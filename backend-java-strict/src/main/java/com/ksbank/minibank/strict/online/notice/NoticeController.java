@@ -1,26 +1,22 @@
 package com.ksbank.minibank.strict.online.notice;
 
-import com.ksbank.minibank.strict.online.cgi.CgiRequest;
-import com.ksbank.minibank.strict.online.cgi.CgiResp;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import com.ksbank.minibank.strict.online.dto.NOTICEDto;
 
 @RestController
-public class NoticeController {
+public class NOTICEController {
 
-    private final NoticeService noticeService;
+    private final NOTICEService noticeService;
 
-    public NoticeController(NoticeService noticeService) {
+    public NOTICEController(NOTICEService noticeService) {
         this.noticeService = noticeService;
     }
 
-    @RequestMapping(value = "/api/notice", method = {RequestMethod.GET, RequestMethod.POST},
-                     produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> notice(HttpServletRequest req) {
-        return CgiResp.ok(noticeService.MAIN(new CgiRequest(req)));
+    @RequestMapping(value = "/api/notice", method = {RequestMethod.GET, RequestMethod.POST})
+    public void notice() {
+        NOTICEDto dto = new NOTICEDto();
+        noticeService.MAIN(dto);
     }
 }
